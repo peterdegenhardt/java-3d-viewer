@@ -75,22 +75,13 @@ public class App {
         // Setup callbacks
         glfwSetKeyCallback(window, (w, key, scancode, action, mods) -> {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
-                if (placingMesh >= 0) {
-                    // Mesh fixieren
-                    System.out.println("Mesh platziert an (" +
-                        String.format("%.1f", scene.getMesh(placingMesh).getPosition().x) + ", " +
-                        String.format("%.1f", scene.getMesh(placingMesh).getPosition().z) + ")");
-                    placingMesh = -1;
-                    mouseLocked = true;
-                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-                    camera.resetMouse();
-                } else if (mouseLocked) {
-                    // Maus frei fürs Platzieren
+                if (mouseLocked) {
+                    // Maus frei
                     mouseLocked = false;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
                     if (scene.getMeshCount() > 0) placingMesh = scene.getMeshCount() - 1;
                 } else {
-                    // Maus wieder sperren
+                    // Maus wieder sperren (ohne zu fixieren — Rechtsklick macht das)
                     mouseLocked = true;
                     placingMesh = -1;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -124,9 +115,18 @@ public class App {
                     // Linksklick: letztes Mesh auswählen zum Platzieren
                     if (scene.getMeshCount() > 0) {
                         placingMesh = scene.getMeshCount() - 1;
-                        System.out.println("Mesh ausgewählt — Maus bewegen zum Platzieren, ESC fixiert");
+                        System.out.println("Mesh ausgewählt — Maus bewegen zum Platzieren, Rechtsklick fixiert");
                     }
                 }
+            } else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS && placingMesh >= 0) {
+                // Rechtsklick: Mesh fixieren + zurück in Flug-Modus
+                System.out.println("Mesh platziert an (" +
+                    String.format("%.1f", scene.getMesh(placingMesh).getPosition().x) + ", " +
+                    String.format("%.1f", scene.getMesh(placingMesh).getPosition().z) + ")");
+                placingMesh = -1;
+                mouseLocked = true;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                camera.resetMouse();
             }
         });
 
