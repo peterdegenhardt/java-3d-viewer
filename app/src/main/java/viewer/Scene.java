@@ -21,7 +21,7 @@ public class Scene {
     private List<Mesh> meshes;
     public int selectedMesh = -1;
 
-    // Grid: ein einziger VAO+VBO, dynamisch aktualisiert
+    // Grid: ein VAO+VBO, Inhalt = Einheitsgrid von -10..+10 auf X und Z, zentriert um 0
     private int gridVao = 0;
     private int gridVbo = 0;
     private int gridVertCount = 0;
@@ -31,6 +31,11 @@ public class Scene {
     public static final float GRID_RADIUS = 10f;
     public static final float GRID_STEP = 1f;
 
+    // Kameraposition beim letzten Draw (für Caching)
+    private float lastGridX = Float.NaN;
+    private float lastGridZ = Float.NaN;
+    private boolean gridBufferDirty = true;
+
     public Scene() {
         meshes = new ArrayList<>();
         initShaders();
@@ -38,39 +43,42 @@ public class Scene {
         gridVbo = glGenBuffers();
         glBindVertexArray(gridVao);
         glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
+        // Zuerst Grid-Daten laden, DANN Attributpointer setzen
+        initGridData(0, 0);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
         glEnableVertexAttribArray(0);
-        initStaticGrid();
         glBindVertexArray(0);
         System.out.println("Scene init complete. Grid VAO=" + gridVao + " VBO=" + gridVbo + " count=" + gridVertCount);
     }
 
-    /** Einmaliges, statisches Grid um den Ursprung */
-    private void initStaticGrid() {
-        int divs = (int)(GRID_RADIUS / GRID_STEP); // 10
+    /** Baut Grid-Daten für eine gegebene Bodenposition (ox, oz) und lädt sie in den VBO */
+    private void initGridData(float ox, float oz) {
+        int divs = (int)(GRID_RADIUS / GRID_STEP);
         float y = 0.05f;
 
-        // Gesamtanzahl Vertices vorher berechnen: (21 Linien X + 21 Linien Z) * 2 Vertices/Linie
-        float[] arr = new float[(divs * 2 + 1) * 2 * 3 * 2]; // 21*2*3*2 = 252 floats
+        // 21 Linien X-Richtung + 21 Linien Z-Richtung, je 2 Vertices, je 3 Floats
+        int vertCount = (divs * 2 + 1) * 2 * 2; // 84 Vertices
+        float[] arr = new float[vertCount * 3]; // 252 Floats
 
         int idx = 0;
-        // Linien parallel zur Z-Achse (X-Richtung)
+        // Linien parallel zur Z-Achse (konstantes X, Z variiert)
         for (int i = -divs; i <= divs; i++) {
-            float x = i * GRID_STEP;
-            arr[idx++] = x; arr[idx++] = y; arr[idx++] = -GRID_RADIUS;
-            arr[idx++] = x; arr[idx++] = y; arr[idx++] =  GRID_RADIUS;
+            float x = ox + i * GRID_STEP;
+            arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
+            arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
         }
-        // Linien parallel zur X-Achse (Z-Richtung)
+        // Linien parallel zur X-Achse (konstantes Z, X variiert)
         for (int i = -divs; i <= divs; i++) {
-            float z = i * GRID_STEP;
-            arr[idx++] = -GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
-            arr[idx++] =  GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
+            float z = oz + i * GRID_STEP;
+            arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
+            arr[idx++] = ox + GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
         }
 
         FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer()
                 .put(arr).flip();
 
+        glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
         glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
         gridVertCount = arr.length / 3;
     }
@@ -137,8 +145,20 @@ public class Scene {
             mesh.render();
         }
 
-        // --- Grid ---
+        // --- Grid: folgt der Kamera auf dem Boden ---
         if (gridVisible) {
+            Vector3f pos = camera.getPosition();
+            float gx = (float) Math.floor(pos.x / GRID_STEP) * GRID_STEP;
+            float gz = (float) Math.floor(pos.z / GRID_STEP) * GRID_STEP;
+
+            // Nur neu laden wenn Kamera sich um ein Meter bewegt hat
+            if (gridBufferDirty || gx != lastGridX || gz != lastGridZ) {
+                initGridData(gx, gz);
+                lastGridX = gx;
+                lastGridZ = gz;
+                gridBufferDirty = false;
+            }
+
             glDisable(GL_DEPTH_TEST);
             glLineWidth(2.0f);
 
