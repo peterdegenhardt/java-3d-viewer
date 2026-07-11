@@ -21,15 +21,20 @@ public class Scene {
     private List<Mesh> meshes;
     public int selectedMesh = -1;
 
-    // Bodengrid: horizontale Linien (auf y=0.05)
+    // Bodengrid: horizontale Linien auf y=0.05
     private int floorVao = 0;
     private int floorVbo = 0;
     private int floorVertCount = 0;
 
-    // Vertikales Grid: Pfeiler, die nach oben gehen
-    private int vertVao = 0;
-    private int vertVbo = 0;
-    private int vertVertCount = 0;
+    // Etagen: horizontale Raster auf y=1,2,...,10
+    private int levelsVao = 0;
+    private int levelsVbo = 0;
+    private int levelsVertCount = 0;
+
+    // Senkrechte: Pfeiler von y=0.05 bis y=10 an jedem Gitterpunkt
+    private int uprightsVao = 0;
+    private int uprightsVbo = 0;
+    private int uprightsVertCount = 0;
 
     public boolean gridVisible = true;
 
@@ -55,36 +60,42 @@ public class Scene {
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
 
-        // === Vertikal-VAO ===
-        vertVao = glGenVertexArrays();
-        vertVbo = glGenBuffers();
-        glBindVertexArray(vertVao);
-        glBindBuffer(GL_ARRAY_BUFFER, vertVbo);
-        initVertData(0, 0);
+        // === Etagen-VAO ===
+        levelsVao = glGenVertexArrays();
+        levelsVbo = glGenBuffers();
+        glBindVertexArray(levelsVao);
+        glBindBuffer(GL_ARRAY_BUFFER, levelsVbo);
+        initLevelsData(0, 0);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
 
-        System.out.println("Scene init. Floor: VAO=" + floorVao + " VBO=" + floorVbo + " verts=" + floorVertCount);
-        System.out.println("Scene init. Vert:  VAO=" + vertVao + " VBO=" + vertVbo + " verts=" + vertVertCount);
+        // === Senkrechte-VAO ===
+        uprightsVao = glGenVertexArrays();
+        uprightsVbo = glGenBuffers();
+        glBindVertexArray(uprightsVao);
+        glBindBuffer(GL_ARRAY_BUFFER, uprightsVbo);
+        initUprightsData(0, 0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+
+        System.out.println("Scene init. Floor: " + floorVertCount + " verts, Levels: " + levelsVertCount + " verts, Uprights: " + uprightsVertCount + " verts");
     }
 
-    /** Bodengrid: horizontale Linien auf y=0.05 */
     private void initFloorData(float ox, float oz) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
         float y = 0.05f;
 
-        int vertCount = (divs * 2 + 1) * 4; // 84 Vertices: 42 Linien × 2
+        int vertCount = (divs * 2 + 1) * 4;
         float[] arr = new float[vertCount * 3];
 
         int idx = 0;
-        // Linien parallel zur Z-Achse (X konstant)
         for (int i = -divs; i <= divs; i++) {
             float x = ox + i * GRID_STEP;
             arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
             arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
         }
-        // Linien parallel zur X-Achse (Z konstant)
         for (int i = -divs; i <= divs; i++) {
             float z = oz + i * GRID_STEP;
             arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
@@ -99,25 +110,21 @@ public class Scene {
         floorVertCount = vertCount;
     }
 
-    /** Vertikalgrid: horizontale Etagen alle GRID_STEP Meter nach oben */
-    private void initVertData(float ox, float oz) {
+    private void initLevelsData(float ox, float oz) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
-        int levels = (int)(GRID_HEIGHT / GRID_STEP); // 10 Etagen
+        int levels = (int)(GRID_HEIGHT / GRID_STEP);
 
-        // Pro Etage: 21 Linien parallel Z + 21 Linien parallel X = 42 Linien = 84 Vertices
-        int vertCount = levels * (divs * 2 + 1) * 4; // 10 × 84 = 840 Vertices
-        float[] arr = new float[vertCount * 3]; // 2520 Floats
+        int vertCount = levels * (divs * 2 + 1) * 4;
+        float[] arr = new float[vertCount * 3];
 
         int idx = 0;
         for (int level = 1; level <= levels; level++) {
             float y = level * GRID_STEP;
-            // Linien parallel zur Z-Achse
             for (int i = -divs; i <= divs; i++) {
                 float x = ox + i * GRID_STEP;
                 arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
                 arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
             }
-            // Linien parallel zur X-Achse
             for (int i = -divs; i <= divs; i++) {
                 float z = oz + i * GRID_STEP;
                 arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
@@ -128,9 +135,35 @@ public class Scene {
         FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer()
                 .put(arr).flip();
-        glBindBuffer(GL_ARRAY_BUFFER, vertVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, levelsVbo);
         glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
-        vertVertCount = vertCount;
+        levelsVertCount = vertCount;
+    }
+
+    private void initUprightsData(float ox, float oz) {
+        int divs = (int)(GRID_RADIUS / GRID_STEP);
+        float y0 = 0.05f;
+        float y1 = GRID_HEIGHT;
+
+        int vertCount = (divs * 2 + 1) * (divs * 2 + 1) * 2;
+        float[] arr = new float[vertCount * 3];
+
+        int idx = 0;
+        for (int ix = -divs; ix <= divs; ix++) {
+            float x = ox + ix * GRID_STEP;
+            for (int iz = -divs; iz <= divs; iz++) {
+                float z = oz + iz * GRID_STEP;
+                arr[idx++] = x; arr[idx++] = y0; arr[idx++] = z;
+                arr[idx++] = x; arr[idx++] = y1; arr[idx++] = z;
+            }
+        }
+
+        FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer()
+                .put(arr).flip();
+        glBindBuffer(GL_ARRAY_BUFFER, uprightsVbo);
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        uprightsVertCount = vertCount;
     }
 
     private void initShaders() {
@@ -195,16 +228,16 @@ public class Scene {
             mesh.render();
         }
 
-        // --- Grid: Boden + Vertikalen ---
+        // --- Grid: Boden + Etagen + Senkrechte ---
         if (gridVisible) {
             Vector3f pos = camera.getPosition();
             float gx = (float) Math.floor(pos.x / GRID_STEP) * GRID_STEP;
             float gz = (float) Math.floor(pos.z / GRID_STEP) * GRID_STEP;
 
-            // Neu laden wenn Kamera sich > 1m bewegt hat
             if (gridBufferDirty || gx != lastGridX || gz != lastGridZ) {
                 initFloorData(gx, gz);
-                initVertData(gx, gz);
+                initLevelsData(gx, gz);
+                initUprightsData(gx, gz);
                 lastGridX = gx;
                 lastGridZ = gz;
                 gridBufferDirty = false;
@@ -216,18 +249,24 @@ public class Scene {
             gridShader.use();
             gridShader.setMat4("uProjection", projection.get(new float[16]));
             gridShader.setMat4("uView", view.get(new float[16]));
-            gridShader.setVec3("uObjectColor", 0.3f, 0.3f, 0.42f);
 
-            // Boden zeichnen
+            // Boden (hellgrau)
+            gridShader.setVec3("uObjectColor", 0.35f, 0.35f, 0.5f);
             glBindVertexArray(floorVao);
             glDrawArrays(GL_LINES, 0, floorVertCount);
             glBindVertexArray(0);
 
-            // Vertikalen zeichnen (dünner, heller)
-            gridShader.setVec3("uObjectColor", 0.25f, 0.25f, 0.35f);
+            // Etagen (mittelgrau)
+            gridShader.setVec3("uObjectColor", 0.25f, 0.25f, 0.4f);
+            glBindVertexArray(levelsVao);
+            glDrawArrays(GL_LINES, 0, levelsVertCount);
+            glBindVertexArray(0);
+
+            // Senkrechte (dunkler, dünner)
+            gridShader.setVec3("uObjectColor", 0.2f, 0.2f, 0.35f);
             glLineWidth(1.5f);
-            glBindVertexArray(vertVao);
-            glDrawArrays(GL_LINES, 0, vertVertCount);
+            glBindVertexArray(uprightsVao);
+            glDrawArrays(GL_LINES, 0, uprightsVertCount);
             glBindVertexArray(0);
 
             glEnable(GL_DEPTH_TEST);
@@ -241,7 +280,9 @@ public class Scene {
         for (Mesh mesh : meshes) mesh.cleanup();
         glDeleteVertexArrays(floorVao);
         glDeleteBuffers(floorVbo);
-        glDeleteVertexArrays(vertVao);
-        glDeleteBuffers(vertVbo);
+        glDeleteVertexArrays(levelsVao);
+        glDeleteBuffers(levelsVbo);
+        glDeleteVertexArrays(uprightsVao);
+        glDeleteBuffers(uprightsVbo);
     }
 }
