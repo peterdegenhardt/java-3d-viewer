@@ -79,10 +79,8 @@ public class App {
                 if (mode == Mode.FLIEGEN) {
                     if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
                         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-                        camera.resetMouse();
                     } else {
                         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-                        camera.resetMouse();
                     }
                 }
             }
