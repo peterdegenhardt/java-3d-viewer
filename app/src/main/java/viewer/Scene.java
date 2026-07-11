@@ -147,17 +147,6 @@ public class Scene {
         Matrix4f projection = camera.getProjectionMatrix(width, height);
         Matrix4f view = camera.getViewMatrix();
 
-        // --- 3D Grid (folgt der Kamera) ---
-        if (gridVisible) {
-            updateGrid(camera.getPosition());
-            gridShader.use();
-            gridShader.setMat4("uProjection", projection.get(new float[16]));
-            gridShader.setMat4("uView", view.get(new float[16]));
-            glBindVertexArray(gridVao);
-            glDrawArrays(GL_LINES, 0, gridCount);
-            glBindVertexArray(0);
-        }
-
         // --- Render meshes ---
         meshShader.use();
         meshShader.setMat4("uProjection", projection.get(new float[16]));
@@ -186,6 +175,19 @@ public class Scene {
             }
 
             mesh.render();
+        }
+
+        // --- 3D Grid (folgt der Kamera, ohne Depth-Test = immer sichtbar) ---
+        if (gridVisible) {
+            updateGrid(camera.getPosition());
+            glDisable(GL_DEPTH_TEST);
+            gridShader.use();
+            gridShader.setMat4("uProjection", projection.get(new float[16]));
+            gridShader.setMat4("uView", view.get(new float[16]));
+            glBindVertexArray(gridVao);
+            glDrawArrays(GL_LINES, 0, gridCount);
+            glBindVertexArray(0);
+            glEnable(GL_DEPTH_TEST);
         }
     }
 
