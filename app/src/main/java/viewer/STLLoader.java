@@ -58,7 +58,6 @@ public class STLLoader {
                 String[] parts = line.split("\\s+");
 
                 if (parts[0].equals("facet")) {
-                    // facet normal nx ny nz (original, wird nach dem Einlesen konvertiert)
                     if (parts.length >= 5) {
                         currentNormal = new Vector3f(
                             Float.parseFloat(parts[2]),
@@ -68,18 +67,12 @@ public class STLLoader {
                     }
                 } else if (parts[0].equals("vertex")) {
                     if (parts.length >= 4) {
-                        // STL-Format: x,y,z mit y=height → konvertieren zu Z-up: y↔z
+                        // STL-Daten unverändert: x, y, z wie in der Datei
                         float vx = Float.parseFloat(parts[1]);
-                        float vy = Float.parseFloat(parts[3]); // alte Z → neue Y
-                        float vz = Float.parseFloat(parts[2]); // alte Y → neue Z (Höhe)
+                        float vy = Float.parseFloat(parts[2]);
+                        float vz = Float.parseFloat(parts[3]);
                         positions.add(new Vector3f(vx, vy, vz));
-                        // Normale auch konvertieren
-                        Vector3f convertedNormal = new Vector3f(
-                            currentNormal.x,
-                            currentNormal.z, // alte Z → neue Y
-                            currentNormal.y  // alte Y → neue Z
-                        );
-                        normals.add(convertedNormal);
+                        normals.add(new Vector3f(currentNormal));
                     }
                 }
             }
@@ -88,7 +81,7 @@ public class STLLoader {
         System.out.println("  Loaded " + (positions.size() / 3) + " triangles (" + name + ")");
 
         Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
-        // Auf Boden: Zielposition.z = -minZ
+        // Auf Boden: tiefsten Z-Wert auf 0 schieben
         float minZ = getMinZ(positions);
         mesh.getPosition().z = -minZ;
         System.out.println("  Positioned at z=" + String.format("%.2f", -minZ) + " (minZ=" + String.format("%.2f", minZ) + ")");
@@ -117,19 +110,19 @@ public class STLLoader {
             }
 
             for (int i = 0; i < triangleCount; i++) {
-                // Normal (original: nx,ny,nz → konvertieren: y↔z)
+                // Normal (unverändert)
                 float nx = buffer.getFloat();
                 float ny = buffer.getFloat();
                 float nz = buffer.getFloat();
-                Vector3f normal = new Vector3f(nx, nz, ny); // alte Z→Y, alte Y→Z
+                Vector3f normal = new Vector3f(nx, ny, nz);
 
-                // 3 vertices (STL-Format: x,y,z mit y=height, z=depth)
+                // 3 vertices (unverändert: x, y, z wie in STL-Datei)
                 for (int v = 0; v < 3; v++) {
                     float vx = buffer.getFloat();
-                    float vy = buffer.getFloat(); // alte Y (Höhe) → neue Z
-                    float vz = buffer.getFloat(); // alte Z (Tiefe) → neue Y
-                    positions.add(new Vector3f(vx, vz, vy));
-                    normals.add(normal);
+                    float vy = buffer.getFloat();
+                    float vz = buffer.getFloat();
+                    positions.add(new Vector3f(vx, vy, vz));
+                    normals.add(new Vector3f(normal));
                 }
 
                 // Skip 2-byte attribute byte count
