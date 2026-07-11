@@ -78,7 +78,7 @@ public class Camera {
         Vector3f right = new Vector3f();
         flatForward.cross(new Vector3f(0, 0, 1), right).normalize();
 
-        position.add(right.mul(-dx));  // negativ weil cross forward×up = left-hand
+        position.add(right.mul(dx));
         position.add(flatForward.mul(dy));
     }
 
