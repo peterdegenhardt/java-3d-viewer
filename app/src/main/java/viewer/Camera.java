@@ -12,7 +12,7 @@ public class Camera {
     // yaw = Rotation um Z-Achse. 0° = Blick in +Y, 90° = Blick in +X
     // pitch = Kippen aus XY. 0° = horizontal, +90° = senkrecht hoch (+Z), -90° = runter (-Z)
     private float yaw = 0.0f;
-    private float pitch = -30.0f; // leicht nach unten schauen
+    private float pitch = -45.0f; // schräg runter aufs Grid
     private float lastX = 640.0f;
     private float lastY = 360.0f;
     private boolean firstMouse = true;
@@ -22,7 +22,7 @@ public class Camera {
     private float farPlane = 1000.0f;
 
     public Camera() {
-        this.position = new Vector3f(0, -5, 5); // über der Mitte, in -Y Richtung schauend (also zur Mitte)
+        this.position = new Vector3f(0, 0, 5); // mittig überm Grid
     }
 
     public void resetMouse() {
