@@ -19,7 +19,7 @@ public class Camera {
     private float farPlane = 1000.0f;
 
     public Camera() {
-        this.position = new Vector3f(0, 30, 80);
+        this.position = new Vector3f(0, 3, 8);
     }
 
     public void resetMouse() {

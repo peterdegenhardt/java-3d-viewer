@@ -38,9 +38,9 @@ public class Scene {
 
     public boolean gridVisible = true;
 
-    public static final float GRID_RADIUS = 10f;
+    public static final float GRID_RADIUS = 5f;
     public static final float GRID_STEP = 1f;
-    public static final float GRID_HEIGHT = 10f;
+    public static final float GRID_HEIGHT = 3f;
 
     private float lastGridX = Float.NaN;
     private float lastGridZ = Float.NaN;
