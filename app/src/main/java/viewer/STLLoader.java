@@ -81,10 +81,14 @@ public class STLLoader {
         System.out.println("  Loaded " + (positions.size() / 3) + " triangles (" + name + ")");
 
         Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
-        // Auf Boden: tiefsten Z-Wert auf 0 schieben
+        // Auf Boden setzen + vor die Kamera platzieren
         float minZ = getMinZ(positions);
-        mesh.getPosition().z = -minZ;
-        System.out.println("  Positioned at z=" + String.format("%.2f", -minZ) + " (minZ=" + String.format("%.2f", minZ) + ")");
+        float maxZ = getMaxZ(positions);
+        mesh.getPosition().z = -minZ; // Boden bei z=0
+        mesh.getPosition().y = 3;     // 3 Meter vor der Kamera
+        System.out.println("  Bounds: z=[" + String.format("%.2f", minZ) + ".." + String.format("%.2f", maxZ) + "]"
+            + " height=" + String.format("%.2f", maxZ - minZ)
+            + " placed at (0, 3, " + String.format("%.2f", -minZ) + ")");
         return mesh;
     }
 
@@ -134,14 +138,17 @@ public class STLLoader {
 
         Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
         float minZ = getMinZ(positions);
+        float maxZ = getMaxZ(positions);
         mesh.getPosition().z = -minZ;
-        System.out.println("  Positioned at z=" + String.format("%.2f", -minZ) + " (minZ=" + String.format("%.2f", minZ) + ")");
+        mesh.getPosition().y = 3;
+        System.out.println("  Bounds: z=[" + String.format("%.2f", minZ) + ".." + String.format("%.2f", maxZ) + "]"
+            + " height=" + String.format("%.2f", maxZ - minZ)
+            + " placed at (0, 3, " + String.format("%.2f", -minZ) + ")");
         return mesh;
     }
 
     /** 
      * Ermittelt den tiefsten Z-Wert aller Vertices und gibt ihn zurück.
-     * positive Werte: Objekt schwebt, negative: Objekt ragt in den Boden.
      */
     private float getMinZ(List<Vector3f> positions) {
         float minZ = Float.MAX_VALUE;
@@ -149,5 +156,14 @@ public class STLLoader {
             if (p.z < minZ) minZ = p.z;
         }
         return minZ;
+    }
+
+    /** Ermittelt den höchsten Z-Wert */
+    private float getMaxZ(List<Vector3f> positions) {
+        float maxZ = -Float.MAX_VALUE;
+        for (Vector3f p : positions) {
+            if (p.z > maxZ) maxZ = p.z;
+        }
+        return maxZ;
     }
 }
