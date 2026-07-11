@@ -22,7 +22,7 @@ public class Camera {
     private float farPlane = 1000.0f;
 
     public Camera() {
-        this.position = new Vector3f(0, 0, 5); // mittig überm Grid
+        this.position = new Vector3f(0, 0, 1.8f); // Augenhöhe mittig überm Grid
     }
 
     public void resetMouse() {
