@@ -91,23 +91,40 @@ public class App {
                     mode = Mode.EDIT;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
                     camera.resetMouse();
-                    if (scene.getMeshCount() > 0)
-                        editMesh = scene.getMeshCount() - 1;
-                    System.out.println(">>> EDIT-Modus (Maus = Mesh verschieben, E = zurück)");
+                    selectNext(0); // erstes Mesh anwählen
+                    System.out.println(">>> EDIT-Modus (Maus = verschieben, +/- = skaliert, R = rotieren)");
                 } else {
                     mode = Mode.FLIEGEN;
                     editMesh = -1;
+                    scene.selectedMesh = -1;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                     camera.resetMouse();
                     System.out.println(">>> FLIEG-Modus");
                 }
             }
 
-            if (key == GLFW_KEY_R && action == GLFW_RELEASE && mode == Mode.EDIT && editMesh >= 0) {
-                // R = Rotation um 45° um Y-Achse
-                Mesh m = scene.getMesh(editMesh);
-                m.getRotation().y = (m.getRotation().y + 45) % 360;
-                System.out.println("Rotation: " + m.getRotation().y + "°");
+            // Edit-Keybindings (nur im Edit-Modus)
+            if (mode == Mode.EDIT && editMesh >= 0) {
+
+                if (key == GLFW_KEY_R && action == GLFW_RELEASE) {
+                    Mesh m = scene.getMesh(editMesh);
+                    m.getRotation().y = (m.getRotation().y + 45) % 360;
+                    System.out.println("Mesh #" + (editMesh + 1) + " Rotation: " + m.getRotation().y + "°");
+                }
+
+                if ((key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) && action == GLFW_RELEASE) {
+                    Mesh m = scene.getMesh(editMesh);
+                    float s = m.getScale().x + 0.25f;
+                    m.getScale().set(s, s, s);
+                    System.out.println("Mesh #" + (editMesh + 1) + " Scale: " + String.format("%.2f", s));
+                }
+
+                if ((key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) && action == GLFW_RELEASE) {
+                    Mesh m = scene.getMesh(editMesh);
+                    float s = Math.max(0.25f, m.getScale().x - 0.25f);
+                    m.getScale().set(s, s, s);
+                    System.out.println("Mesh #" + (editMesh + 1) + " Scale: " + String.format("%.2f", s));
+                }
             }
 
             if (key >= 0 && key < keys.length) {
@@ -141,15 +158,15 @@ public class App {
                 // Rechtsklick = Edit-Modus beenden
                 mode = Mode.FLIEGEN;
                 editMesh = -1;
+                scene.selectedMesh = -1;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                 camera.resetMouse();
                 System.out.println(">>> FLIEG-Modus");
             }
             if (mode == Mode.EDIT && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-                // Linksklick = nächstes Mesh auswählen (oder wieder erstes)
+                // Linksklick = nächstes Mesh auswählen (zyklisch)
                 if (scene.getMeshCount() > 0) {
-                    editMesh = (editMesh + 1) % scene.getMeshCount();
-                    System.out.println("Mesh #" + (editMesh + 1) + " von " + scene.getMeshCount() + " ausgewählt");
+                    selectNext(editMesh + 1);
                 }
             }
         });
@@ -196,9 +213,11 @@ public class App {
 
         System.out.println("=== 3D STL Viewer ===");
         System.out.println("FLIEG-Modus: Pfeiltasten/WASD = bewegen, Maus = drehen");
-        System.out.println("E = Edit-Modus (Mesh verschieben)");
-        System.out.println("EDIT: Maus = Mesh platzieren, Scroll = Höhe, R = rotieren");
-        System.out.println("EDIT: Linksklick = nächstes Mesh, Rechtsklick = zurück fliegen");
+        System.out.println("ESC = Maus frei (für Drag & Drop)");
+        System.out.println("E = Edit-Modus");
+        System.out.println("EDIT: Maus = verschieben, Scroll = Höhe");
+        System.out.println("EDIT: +/- = skalieren, R = rotieren (45°)");
+        System.out.println("EDIT: Linksklick = nächstes Mesh, Rechtsklick = zurück");
         System.out.println("STL-Dateien reinziehen = laden");
     }
 
@@ -273,5 +292,20 @@ public class App {
 
     public static void main(String[] args) {
         new App().run();
+    }
+
+    /** Wählt das nächste Mesh an (zyklisch) */
+    private void selectNext(int index) {
+        if (scene.getMeshCount() == 0) {
+            editMesh = -1;
+            return;
+        }
+        editMesh = index % scene.getMeshCount();
+        scene.selectedMesh = editMesh;
+        Mesh m = scene.getMesh(editMesh);
+        System.out.println("Mesh #" + (editMesh + 1) + " von " + scene.getMeshCount()
+            + " | Pos: " + String.format("%.1f", m.getPosition().x) + ", " + String.format("%.1f", m.getPosition().z)
+            + " | Scale: " + String.format("%.2f", m.getScale().x)
+            + " | Rot: " + String.format("%.0f", m.getRotation().y) + "°");
     }
 }

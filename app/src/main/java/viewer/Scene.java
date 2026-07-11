@@ -16,6 +16,7 @@ public class Scene {
     private ShaderProgram meshShader;
     private ShaderProgram gridShader;
     private List<Mesh> meshes;
+    public int selectedMesh = -1; // Index des ausgewählten Meshs (für Highlight)
 
     // Grid
     private int gridVao, gridVbo, gridCount;
@@ -124,7 +125,8 @@ public class Scene {
         meshShader.setVec3("uViewPos", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
         meshShader.setFloat("uAmbientStrength", 0.3f);
 
-        for (Mesh mesh : meshes) {
+        for (int i = 0; i < meshes.size(); i++) {
+            Mesh mesh = meshes.get(i);
             Matrix4f model = new Matrix4f()
                 .translate(mesh.getPosition())
                 .rotateX((float) Math.toRadians(mesh.getRotation().x))
@@ -133,7 +135,13 @@ public class Scene {
                 .scale(mesh.getScale());
 
             meshShader.setMat4("uModel", model.get(new float[16]));
-            meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f);
+
+            // Ausgewähltes Mesh hervorheben (gelblich)
+            if (selectedMesh == i) {
+                meshShader.setVec3("uObjectColor", 1.0f, 0.9f, 0.4f); // gold/gelb
+            } else {
+                meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f); // bläulich
+            }
 
             mesh.render();
         }
