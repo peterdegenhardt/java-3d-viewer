@@ -57,7 +57,7 @@ public class STLLoader {
                 String[] parts = line.split("\\s+");
 
                 if (parts[0].equals("facet")) {
-                    // facet normal nx ny nz
+                    // facet normal nx ny nz (original, wird nach dem Einlesen konvertiert)
                     if (parts.length >= 5) {
                         currentNormal = new Vector3f(
                             Float.parseFloat(parts[2]),
@@ -67,12 +67,18 @@ public class STLLoader {
                     }
                 } else if (parts[0].equals("vertex")) {
                     if (parts.length >= 4) {
-                        positions.add(new Vector3f(
-                            Float.parseFloat(parts[1]),
-                            Float.parseFloat(parts[2]),
-                            Float.parseFloat(parts[3])
-                        ));
-                        normals.add(currentNormal);
+                        // STL-Format: x,y,z mit y=height → konvertieren zu Z-up: y↔z
+                        float vx = Float.parseFloat(parts[1]);
+                        float vy = Float.parseFloat(parts[3]); // alte Z → neue Y
+                        float vz = Float.parseFloat(parts[2]); // alte Y → neue Z (Höhe)
+                        positions.add(new Vector3f(vx, vy, vz));
+                        // Normale auch konvertieren
+                        Vector3f convertedNormal = new Vector3f(
+                            currentNormal.x,
+                            currentNormal.z, // alte Z → neue Y
+                            currentNormal.y  // alte Y → neue Z
+                        );
+                        normals.add(convertedNormal);
                     }
                 }
             }
@@ -80,7 +86,7 @@ public class STLLoader {
 
         System.out.println("  Loaded " + (positions.size() / 3) + " triangles (" + name + ")");
 
-        // Auf Boden setzen: tiefsten y-Wert auf 0 verschieben
+        // Auf Boden setzen: tiefsten Z-Wert auf 0 verschieben
         centerOnFloor(positions);
 
         return Mesh.fromTriangleList(positions, normals, name);
@@ -108,15 +114,18 @@ public class STLLoader {
             }
 
             for (int i = 0; i < triangleCount; i++) {
-                // Normal
+                // Normal (original: nx,ny,nz → konvertieren: y↔z)
                 float nx = buffer.getFloat();
                 float ny = buffer.getFloat();
                 float nz = buffer.getFloat();
-                Vector3f normal = new Vector3f(nx, ny, nz);
+                Vector3f normal = new Vector3f(nx, nz, ny); // alte Z→Y, alte Y→Z
 
                 // 3 vertices
                 for (int v = 0; v < 3; v++) {
-                    positions.add(new Vector3f(buffer.getFloat(), buffer.getFloat(), buffer.getFloat()));
+                    float vx = buffer.getFloat();
+                    float vy = buffer.getFloat(); // alte Z (Tiefe)
+                    float vz = buffer.getFloat(); // alte Y (Höhe)
+                    positions.add(new Vector3f(vx, vy, vz)); // schon richtig: x, y(tiefe), z(hoehe)
                     normals.add(normal);
                 }
 

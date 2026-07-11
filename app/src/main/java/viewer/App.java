@@ -149,7 +149,10 @@ public class App {
                     if (editMesh >= 0) {
                         Vector3f hit = mouseToGround(xpos, ypos);
                         if (hit != null) {
-                            scene.getMesh(editMesh).getPosition().set(hit);
+                            Mesh mesh = scene.getMesh(editMesh);
+                            mesh.getPosition().x = hit.x;
+                            mesh.getPosition().y = hit.y;
+                            // Z (Höhe) bleibt erhalten — nur XY wird durch Maus gesetzt
                         }
                     }
                     break;
