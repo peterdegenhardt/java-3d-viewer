@@ -183,9 +183,9 @@ public class App {
                     break;
                 case EDIT:
                     if (editMesh >= 0) {
-                        float dy = (float) yoffset * 0.5f;
+                        float dz = (float) yoffset * 0.5f;
                         Vector3f pos = scene.getMesh(editMesh).getPosition();
-                        pos.y = Math.max(0, pos.y + dy);
+                        pos.z = Math.max(0, pos.z + dz);
                     }
                     break;
             }
@@ -215,17 +215,17 @@ public class App {
             }
         });
 
-        System.out.println("=== 3D STL Viewer ===");
+        System.out.println("=== 3D STL Viewer (Z-up) ===");
         System.out.println("FLIEG-Modus: Pfeiltasten/WASD = bewegen, Maus = drehen");
         System.out.println("ESC = Maus frei (für Drag & Drop)");
         System.out.println("E = Edit-Modus");
-        System.out.println("EDIT: Maus = verschieben, Scroll = Höhe");
+        System.out.println("EDIT: Maus = verschieben, Scroll = Höhe (Z)");
         System.out.println("EDIT: +/- = skalieren, R = rotieren (45°)");
         System.out.println("EDIT: Linksklick = nächstes Mesh, Rechtsklick = zurück");
         System.out.println("STL-Dateien reinziehen = laden");
     }
 
-    /** Berechnet den Schnittpunkt Mausstrahl -> Boden (y=0) */
+    /** Berechnet den Schnittpunkt Mausstrahl -> Boden (z=0) */
     private Vector3f mouseToGround(double mx, double my) {
         int[] vp = new int[4];
         glGetIntegerv(GL_VIEWPORT, vp);
@@ -246,10 +246,11 @@ public class App {
         Vector3f origin = new Vector3f(near.x, near.y, near.z);
         Vector3f dir = new Vector3f(far.x - near.x, far.y - near.y, far.z - near.z).normalize();
 
-        if (dir.y >= 0) return null;
-        float t = -origin.y / dir.y;
+        // Schnitt mit der Ebene z=0 (Boden im Z-up System)
+        if (dir.z >= 0) return null;
+        float t = -origin.z / dir.z;
         if (t < 0) return null;
-        return new Vector3f(origin.x + dir.x * t, 0, origin.z + dir.z * t);
+        return new Vector3f(origin.x + dir.x * t, origin.y + dir.y * t, 0);
     }
 
     private void loop() {

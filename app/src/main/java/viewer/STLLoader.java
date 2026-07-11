@@ -133,18 +133,18 @@ public class STLLoader {
         return Mesh.fromTriangleList(positions, normals, name);
     }
 
-    /** Verschiebt alle Vertices so, dass der tiefste y-Wert bei 0 liegt */
+    /** Verschiebt alle Vertices so, dass der tiefste z-Wert bei 0 liegt (Z=Höhe) */
     private void centerOnFloor(List<Vector3f> positions) {
-        float minY = Float.MAX_VALUE;
+        float minZ = Float.MAX_VALUE;
         for (Vector3f p : positions) {
-            if (p.y < minY) minY = p.y;
+            if (p.z < minZ) minZ = p.z;
         }
-        if (minY != 0) {
-            float dy = -minY;
+        if (minZ != 0) {
+            float dz = -minZ;
             for (Vector3f p : positions) {
-                p.y += dy;
+                p.z += dz;
             }
-            System.out.println("  Shifted mesh up by " + String.format("%.3f", dy) + " to sit on ground");
+            System.out.println("  Shifted mesh up by " + String.format("%.3f", dz) + " to sit on ground");
         }
     }
 }

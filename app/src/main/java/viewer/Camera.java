@@ -8,6 +8,7 @@ import static org.lwjgl.glfw.GLFW.*;
 public class Camera {
 
     private Vector3f position;
+    // Für Z-up Koordinatensystem: yaw um Z, pitch kippt aus der XY-Ebene
     private float yaw = -90.0f;
     private float pitch = 0.0f;
     private float lastX = 640.0f;
@@ -19,7 +20,7 @@ public class Camera {
     private float farPlane = 1000.0f;
 
     public Camera() {
-        this.position = new Vector3f(0, 3, 8);
+        this.position = new Vector3f(0, 0, 5);
     }
 
     public void resetMouse() {
@@ -55,30 +56,32 @@ public class Camera {
         if (fov > 120.0f) fov = 120.0f;
     }
 
-    public void move(float dx, float dz) {
-        // Move relative to camera facing direction
+    public void move(float dx, float dy) {
+        // Move relative to camera facing direction in XY plane (Z-up)
         Vector3f forward = getForward();
+        // Remove Z component for horizontal movement
+        Vector3f flatForward = new Vector3f(forward.x, forward.y, 0).normalize();
         Vector3f right = new Vector3f();
-        Vector3f up = new Vector3f(0, 1, 0);
-        forward.cross(up, right).normalize();
+        Vector3f up = new Vector3f(0, 0, 1);
+        flatForward.cross(up, right).normalize();
 
         position.add(right.mul(dx));
-        position.add(forward.mul(dz));
+        position.add(flatForward.mul(dy));
     }
 
     public void moveUp(float speed) {
-        position.y += speed;
+        position.z += speed;
     }
 
     public void moveDown(float speed) {
-        position.y -= speed;
+        position.z -= speed;
     }
 
     public Vector3f getForward() {
         Vector3f forward = new Vector3f();
         forward.x = (float) (Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
-        forward.y = (float) Math.sin(Math.toRadians(pitch));
-        forward.z = (float) (Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
+        forward.y = (float) (Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
+        forward.z = (float) Math.sin(Math.toRadians(pitch));
         forward.normalize();
         return forward;
     }
@@ -86,7 +89,7 @@ public class Camera {
     public Matrix4f getViewMatrix() {
         Vector3f forward = getForward();
         Vector3f center = new Vector3f(position).add(forward);
-        return new Matrix4f().lookAt(position, center, new Vector3f(0, 1, 0));
+        return new Matrix4f().lookAt(position, center, new Vector3f(0, 0, 1));
     }
 
     public Matrix4f getProjectionMatrix(int width, int height) {

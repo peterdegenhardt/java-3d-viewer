@@ -21,17 +21,17 @@ public class Scene {
     private List<Mesh> meshes;
     public int selectedMesh = -1;
 
-    // Bodengrid: horizontale Linien auf y=0.05
+    // Bodengrid: horizontale Linien auf z=0.05 (Grundebene = X/Y)
     private int floorVao = 0;
     private int floorVbo = 0;
     private int floorVertCount = 0;
 
-    // Etagen: horizontale Raster auf y=1,2,...,10
+    // Etagen: horizontale Raster auf z=1,2,3
     private int levelsVao = 0;
     private int levelsVbo = 0;
     private int levelsVertCount = 0;
 
-    // Senkrechte: Pfeiler von y=0.05 bis y=10 an jedem Gitterpunkt
+    // Senkrechte: Pfeiler von z=0.05 bis z=3 an jedem Gitterpunkt
     private int uprightsVao = 0;
     private int uprightsVbo = 0;
     private int uprightsVertCount = 0;
@@ -43,14 +43,14 @@ public class Scene {
     public static final float GRID_HEIGHT = 3f;
 
     private float lastGridX = Float.NaN;
-    private float lastGridZ = Float.NaN;
+    private float lastGridY = Float.NaN;
     private boolean gridBufferDirty = true;
 
     public Scene() {
         meshes = new ArrayList<>();
         initShaders();
 
-        // === Boden-VAO ===
+        // === Boden-VAO (X/Y-Ebene bei z=0.05) ===
         floorVao = glGenVertexArrays();
         floorVbo = glGenBuffers();
         glBindVertexArray(floorVao);
@@ -60,7 +60,7 @@ public class Scene {
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
 
-        // === Etagen-VAO ===
+        // === Etagen-VAO (X/Y-Ebenen bei z=1,2,3) ===
         levelsVao = glGenVertexArrays();
         levelsVbo = glGenBuffers();
         glBindVertexArray(levelsVao);
@@ -70,7 +70,7 @@ public class Scene {
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
 
-        // === Senkrechte-VAO ===
+        // === Senkrechte-VAO (Pfeiler in Z-Richtung) ===
         uprightsVao = glGenVertexArrays();
         uprightsVbo = glGenBuffers();
         glBindVertexArray(uprightsVao);
@@ -83,21 +83,24 @@ public class Scene {
         System.out.println("Scene init. Floor: " + floorVertCount + " verts, Levels: " + levelsVertCount + " verts, Uprights: " + uprightsVertCount + " verts");
     }
 
-    private void initFloorData(float ox, float oz) {
+    /** Bodengitter: X/Y-Ebene bei z=0.05 */
+    private void initFloorData(float ox, float oy) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
-        float y = 0.05f;
+        float z = 0.05f;
 
         int vertCount = (divs * 2 + 1) * 4;
         float[] arr = new float[vertCount * 3];
 
         int idx = 0;
+        // Linien parallel zur Y-Achse (X konstant)
         for (int i = -divs; i <= divs; i++) {
             float x = ox + i * GRID_STEP;
-            arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
-            arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
+            arr[idx++] = x; arr[idx++] = oy - GRID_RADIUS; arr[idx++] = z;
+            arr[idx++] = x; arr[idx++] = oy + GRID_RADIUS; arr[idx++] = z;
         }
+        // Linien parallel zur X-Achse (Y konstant)
         for (int i = -divs; i <= divs; i++) {
-            float z = oz + i * GRID_STEP;
+            float y = oy + i * GRID_STEP;
             arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
             arr[idx++] = ox + GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
         }
@@ -110,7 +113,8 @@ public class Scene {
         floorVertCount = vertCount;
     }
 
-    private void initLevelsData(float ox, float oz) {
+    /** Etagen: X/Y-Ebenen bei z=1,2,3 */
+    private void initLevelsData(float ox, float oy) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
         int levels = (int)(GRID_HEIGHT / GRID_STEP);
 
@@ -119,14 +123,14 @@ public class Scene {
 
         int idx = 0;
         for (int level = 1; level <= levels; level++) {
-            float y = level * GRID_STEP;
+            float z = level * GRID_STEP;
             for (int i = -divs; i <= divs; i++) {
                 float x = ox + i * GRID_STEP;
-                arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
-                arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
+                arr[idx++] = x; arr[idx++] = oy - GRID_RADIUS; arr[idx++] = z;
+                arr[idx++] = x; arr[idx++] = oy + GRID_RADIUS; arr[idx++] = z;
             }
             for (int i = -divs; i <= divs; i++) {
-                float z = oz + i * GRID_STEP;
+                float y = oy + i * GRID_STEP;
                 arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
                 arr[idx++] = ox + GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
             }
@@ -140,10 +144,11 @@ public class Scene {
         levelsVertCount = vertCount;
     }
 
-    private void initUprightsData(float ox, float oz) {
+    /** Senkrechte: Pfeiler von z=0.05 bis z=3 an jedem Gitterpunkt */
+    private void initUprightsData(float ox, float oy) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
-        float y0 = 0.05f;
-        float y1 = GRID_HEIGHT;
+        float z0 = 0.05f;
+        float z1 = GRID_HEIGHT;
 
         int vertCount = (divs * 2 + 1) * (divs * 2 + 1) * 2;
         float[] arr = new float[vertCount * 3];
@@ -151,10 +156,10 @@ public class Scene {
         int idx = 0;
         for (int ix = -divs; ix <= divs; ix++) {
             float x = ox + ix * GRID_STEP;
-            for (int iz = -divs; iz <= divs; iz++) {
-                float z = oz + iz * GRID_STEP;
-                arr[idx++] = x; arr[idx++] = y0; arr[idx++] = z;
-                arr[idx++] = x; arr[idx++] = y1; arr[idx++] = z;
+            for (int iy = -divs; iy <= divs; iy++) {
+                float y = oy + iy * GRID_STEP;
+                arr[idx++] = x; arr[idx++] = y; arr[idx++] = z0;
+                arr[idx++] = x; arr[idx++] = y; arr[idx++] = z1;
             }
         }
 
@@ -232,14 +237,14 @@ public class Scene {
         if (gridVisible) {
             Vector3f pos = camera.getPosition();
             float gx = (float) Math.floor(pos.x / GRID_STEP) * GRID_STEP;
-            float gz = (float) Math.floor(pos.z / GRID_STEP) * GRID_STEP;
+            float gy = (float) Math.floor(pos.y / GRID_STEP) * GRID_STEP;
 
-            if (gridBufferDirty || gx != lastGridX || gz != lastGridZ) {
-                initFloorData(gx, gz);
-                initLevelsData(gx, gz);
-                initUprightsData(gx, gz);
+            if (gridBufferDirty || gx != lastGridX || gy != lastGridY) {
+                initFloorData(gx, gy);
+                initLevelsData(gx, gy);
+                initUprightsData(gx, gy);
                 lastGridX = gx;
-                lastGridZ = gz;
+                lastGridY = gy;
                 gridBufferDirty = false;
             }
 
