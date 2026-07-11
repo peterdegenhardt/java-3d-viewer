@@ -70,26 +70,26 @@ public class Scene {
         int divs = (int)(GRID_RADIUS / GRID_STEP); // 10
         List<Float> vertices = new ArrayList<>();
 
-        // === Horizontale X-Linien (in Z-Richtung) auf Bodenhöhe ===
+        // === Boden: X-Linien (in Z-Richtung) mit leichtem Offset ===
         for (int i = -divs; i <= divs; i++) {
             float z = oz + i * GRID_STEP;
-            vertices.add(ox - GRID_RADIUS); vertices.add(0f); vertices.add(z);
-            vertices.add(ox + GRID_RADIUS); vertices.add(0f); vertices.add(z);
+            vertices.add(ox - GRID_RADIUS); vertices.add(0.01f); vertices.add(z);
+            vertices.add(ox + GRID_RADIUS); vertices.add(0.01f); vertices.add(z);
         }
 
-        // === Horizontale Z-Linien (in X-Richtung) auf Bodenhöhe ===
+        // === Boden: Z-Linien (in X-Richtung) mit leichtem Offset ===
         for (int i = -divs; i <= divs; i++) {
             float x = ox + i * GRID_STEP;
-            vertices.add(x); vertices.add(0f); vertices.add(oz - GRID_RADIUS);
-            vertices.add(x); vertices.add(0f); vertices.add(oz + GRID_RADIUS);
+            vertices.add(x); vertices.add(0.01f); vertices.add(oz - GRID_RADIUS);
+            vertices.add(x); vertices.add(0.01f); vertices.add(oz + GRID_RADIUS);
         }
 
-        // === Vertikale Linien (alle 1m, vom Boden bis 20m Höhe) ===
+        // === Vertikale Linien ===
         for (int ix = -divs; ix <= divs; ix++) {
             float x = ox + ix * GRID_STEP;
             for (int iz = -divs; iz <= divs; iz++) {
                 float z = oz + iz * GRID_STEP;
-                vertices.add(x); vertices.add(0f);           vertices.add(z);
+                vertices.add(x); vertices.add(0.01f);        vertices.add(z);
                 vertices.add(x); vertices.add(GRID_HEIGHT); vertices.add(z);
             }
         }
