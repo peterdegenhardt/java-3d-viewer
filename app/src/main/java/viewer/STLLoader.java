@@ -14,6 +14,7 @@ public class STLLoader {
 
     /**
      * Load an STL file (ASCII or binary) and return a Mesh.
+     * The mesh's position.z is set so its lowest point sits at z=0.
      */
     public Mesh load(String filePath) throws IOException {
         File file = new File(filePath);
@@ -86,10 +87,12 @@ public class STLLoader {
 
         System.out.println("  Loaded " + (positions.size() / 3) + " triangles (" + name + ")");
 
-        // Auf Boden setzen: tiefsten Z-Wert auf 0 verschieben
-        centerOnFloor(positions);
-
-        return Mesh.fromTriangleList(positions, normals, name);
+        Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
+        // Auf Boden: Zielposition.z = -minZ
+        float minZ = getMinZ(positions);
+        mesh.getPosition().z = -minZ;
+        System.out.println("  Positioned at z=" + String.format("%.2f", -minZ) + " (minZ=" + String.format("%.2f", minZ) + ")");
+        return mesh;
     }
 
     private Mesh loadBinary(File file, String name) throws IOException {
@@ -136,24 +139,22 @@ public class STLLoader {
             System.out.println("  Loaded " + triangleCount + " triangles (" + name + ")");
         }
 
-        // Auf Boden setzen
-        centerOnFloor(positions);
-
-        return Mesh.fromTriangleList(positions, normals, name);
+        Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
+        float minZ = getMinZ(positions);
+        mesh.getPosition().z = -minZ;
+        System.out.println("  Positioned at z=" + String.format("%.2f", -minZ) + " (minZ=" + String.format("%.2f", minZ) + ")");
+        return mesh;
     }
 
-    /** Verschiebt alle Vertices so, dass der tiefste z-Wert bei 0 liegt (Z=Höhe) */
-    private void centerOnFloor(List<Vector3f> positions) {
+    /** 
+     * Ermittelt den tiefsten Z-Wert aller Vertices und gibt ihn zurück.
+     * positive Werte: Objekt schwebt, negative: Objekt ragt in den Boden.
+     */
+    private float getMinZ(List<Vector3f> positions) {
         float minZ = Float.MAX_VALUE;
         for (Vector3f p : positions) {
             if (p.z < minZ) minZ = p.z;
         }
-        if (minZ != 0) {
-            float dz = -minZ;
-            for (Vector3f p : positions) {
-                p.z += dz;
-            }
-            System.out.println("  Shifted mesh up by " + String.format("%.3f", dz) + " to sit on ground");
-        }
+        return minZ;
     }
 }

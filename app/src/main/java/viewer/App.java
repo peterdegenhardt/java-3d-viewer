@@ -206,7 +206,9 @@ public class App {
                     if (path.toLowerCase().endsWith(".stl")) {
                         System.out.println("Loading STL: " + path);
                         try {
-                            scene.addMesh(stlLoader.load(path));
+                            Mesh mesh = stlLoader.load(path);
+                            scene.addMesh(mesh);
+                            System.out.println("  Mesh #" + scene.getMeshCount() + " added at (0,0,0)");
                             if (mode == Mode.EDIT) {
                                 editMesh = scene.getMeshCount() - 1;
                             }
