@@ -74,6 +74,19 @@ public class App {
 
         // === Key callback ===
         glfwSetKeyCallback(window, (w, key, scancode, action, mods) -> {
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+                // ESC = Maus frei/sperren (nur im Flug-Modus)
+                if (mode == Mode.FLIEGEN) {
+                    if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
+                        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                        camera.resetMouse();
+                    } else {
+                        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                        camera.resetMouse();
+                    }
+                }
+            }
+
             if (key == GLFW_KEY_E && action == GLFW_RELEASE) {
                 // E = Edit-Modus umschalten
                 if (mode == Mode.FLIEGEN) {
@@ -110,7 +123,8 @@ public class App {
             mouseY = ypos;
             switch (mode) {
                 case FLIEGEN:
-                    camera.handleMouse(xpos, ypos);
+                    if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
+                        camera.handleMouse(xpos, ypos);
                     break;
                 case EDIT:
                     if (editMesh >= 0) {
