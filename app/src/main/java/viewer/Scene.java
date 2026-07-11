@@ -40,8 +40,39 @@ public class Scene {
         glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
         glEnableVertexAttribArray(0);
+        initStaticGrid();
         glBindVertexArray(0);
-        System.out.println("Scene init complete. Grid VAO=" + gridVao + " VBO=" + gridVbo);
+        System.out.println("Scene init complete. Grid VAO=" + gridVao + " VBO=" + gridVbo + " count=" + gridVertCount);
+    }
+
+    /** Einmaliges, statisches Grid um den Ursprung */
+    private void initStaticGrid() {
+        int divs = (int)(GRID_RADIUS / GRID_STEP); // 10
+        float y = 0.05f;
+
+        // Gesamtanzahl Vertices vorher berechnen: (21 Linien X + 21 Linien Z) * 2 Vertices/Linie
+        float[] arr = new float[(divs * 2 + 1) * 2 * 3 * 2]; // 21*2*3*2 = 252 floats
+
+        int idx = 0;
+        // Linien parallel zur Z-Achse (X-Richtung)
+        for (int i = -divs; i <= divs; i++) {
+            float x = i * GRID_STEP;
+            arr[idx++] = x; arr[idx++] = y; arr[idx++] = -GRID_RADIUS;
+            arr[idx++] = x; arr[idx++] = y; arr[idx++] =  GRID_RADIUS;
+        }
+        // Linien parallel zur X-Achse (Z-Richtung)
+        for (int i = -divs; i <= divs; i++) {
+            float z = i * GRID_STEP;
+            arr[idx++] = -GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
+            arr[idx++] =  GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
+        }
+
+        FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer()
+                .put(arr).flip();
+
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        gridVertCount = arr.length / 3;
     }
 
     private void initShaders() {
@@ -53,47 +84,6 @@ public class Scene {
             ShaderProgram.gridVertexSource(),
             ShaderProgram.gridFragmentSource()
         );
-    }
-
-    /** Baut das Grid um die Kameraposition */
-    private void buildGridAround(Vector3f cameraPos) {
-        if (cameraPos == null) return;
-
-        float ox = (float) Math.floor(cameraPos.x / GRID_STEP) * GRID_STEP;
-        float oz = (float) Math.floor(cameraPos.z / GRID_STEP) * GRID_STEP;
-
-        int divs = (int)(GRID_RADIUS / GRID_STEP); // = 10
-
-        // ArrayList<Float> ist schneller als ByteBuffer-Allokation
-        java.util.List<Float> verts = new java.util.ArrayList<>((divs * 2 + 1) * 4 * 3); // Vorallokieren
-        float y = 0.05f;
-
-        // Linien parallel zur Z-Achse (X-Richtung)
-        for (int i = -divs; i <= divs; i++) {
-            float x = ox + i * GRID_STEP;
-            verts.add(x); verts.add(y); verts.add(oz - GRID_RADIUS);
-            verts.add(x); verts.add(y); verts.add(oz + GRID_RADIUS);
-        }
-
-        // Linien parallel zur X-Achse (Z-Richtung)
-        for (int i = -divs; i <= divs; i++) {
-            float z = oz + i * GRID_STEP;
-            verts.add(ox - GRID_RADIUS); verts.add(y); verts.add(z);
-            verts.add(ox + GRID_RADIUS); verts.add(y); verts.add(z);
-        }
-
-        float[] arr = new float[verts.size()];
-        for (int i = 0; i < verts.size(); i++) arr[i] = verts.get(i);
-
-        FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
-                .order(ByteOrder.nativeOrder()).asFloatBuffer()
-                .put(arr).flip();
-
-        glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
-        glBufferData(GL_ARRAY_BUFFER, fb, GL_STREAM_DRAW);
-        gridVertCount = arr.length / 3;
-
-        System.out.println("Grid updated: " + gridVertCount + " vertices");
     }
 
     public void toggleGrid() {
@@ -149,8 +139,6 @@ public class Scene {
 
         // --- Grid ---
         if (gridVisible) {
-            buildGridAround(camera.getPosition());
-
             glDisable(GL_DEPTH_TEST);
             glLineWidth(2.0f);
 
