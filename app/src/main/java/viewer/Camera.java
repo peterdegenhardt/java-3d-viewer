@@ -9,10 +9,10 @@ public class Camera {
 
     private Vector3f position;
     // Z-up System:
-    // yaw: Rotation um Z-Achse (links/rechts)
-    // pitch: Kippen aus der XY-Ebene (oben/unten)
-    private float yaw = -90.0f;
-    private float pitch = 0.0f;
+    // yaw = Rotation um Z-Achse. 0° = Blick in +Y, 90° = Blick in +X
+    // pitch = Kippen aus XY. 0° = horizontal, +90° = senkrecht hoch (+Z), -90° = runter (-Z)
+    private float yaw = 0.0f;
+    private float pitch = -30.0f; // leicht nach unten schauen
     private float lastX = 640.0f;
     private float lastY = 360.0f;
     private boolean firstMouse = true;
@@ -22,7 +22,7 @@ public class Camera {
     private float farPlane = 1000.0f;
 
     public Camera() {
-        this.position = new Vector3f(0, 5, 3);
+        this.position = new Vector3f(0, -5, 5); // über der Mitte, in -Y Richtung schauend (also zur Mitte)
     }
 
     public void resetMouse() {
@@ -46,7 +46,9 @@ public class Camera {
         dx *= sensitivity;
         dy *= sensitivity;
 
+        // Maus rechts = yaw +
         yaw += dx;
+        // Maus runter = pitch - (nach unten gucken)
         pitch -= dy;
         if (pitch > 89.0f) pitch = 89.0f;
         if (pitch < -89.0f) pitch = -89.0f;
@@ -59,21 +61,24 @@ public class Camera {
     }
 
     public void move(float dx, float dy) {
-        // Horizontale Bewegung in der XY-Ebene (Z-up)
+        // Horizontale Bewegung in der XY-Ebene
+        // dy>0 = vorwärts (in Blickrichtung, aber ohne Z-Komponente)
+        // dx>0 = rechts
+
         Vector3f forward = getForward();
-        // Nur XY-Komponente für horizontale Bewegung
+        // Flach machen (Z=0) für horizontale Bewegung
         Vector3f flatForward = new Vector3f(forward.x, forward.y, 0);
         if (flatForward.length() > 0.001f) {
             flatForward.normalize();
         } else {
-            flatForward.set(0, 1, 0); // Fallback wenn genau nach oben/unten
+            flatForward.set(0, 1, 0);
         }
 
-        // Right = flatForward × (0,0,1)
+        // Right = flatForward × Z_up
         Vector3f right = new Vector3f();
         flatForward.cross(new Vector3f(0, 0, 1), right).normalize();
 
-        position.add(right.mul(dx));
+        position.add(right.mul(-dx));  // negativ weil cross forward×up = left-hand
         position.add(flatForward.mul(dy));
     }
 
@@ -86,11 +91,13 @@ public class Camera {
     }
 
     public Vector3f getForward() {
-        // Im Z-up: yaw rotiert um Z, pitch kippt aus XY
-        Vector3f forward = new Vector3f();
+        // yaw=0 → Blick in +Y:  (0, 1, 0)
+        // yaw=90 → Blick in +X: (1, 0, 0)
+        // pitch kippt aus XY in Z
         float cosPitch = (float) Math.cos(Math.toRadians(pitch));
-        forward.x = (float) (Math.cos(Math.toRadians(yaw)) * cosPitch);
-        forward.y = (float) (Math.sin(Math.toRadians(yaw)) * cosPitch);
+        Vector3f forward = new Vector3f();
+        forward.x = (float) (Math.sin(Math.toRadians(yaw)) * cosPitch);
+        forward.y = (float) (Math.cos(Math.toRadians(yaw)) * cosPitch);
         forward.z = (float) Math.sin(Math.toRadians(pitch));
         forward.normalize();
         return forward;
@@ -100,14 +107,15 @@ public class Camera {
         Vector3f forward = getForward();
         Vector3f center = new Vector3f(position).add(forward);
 
-        // Up-Vektor dynamisch berechnen: wenn pitch extrem ist, nicht kippen
+        // Dynamischen Up-Vektor berechnen für stabile Rotation
+        // Bei pitch=0 ist up = (0,0,1) — Z ist oben
+        // Bei pitch=90° (senkrecht nach oben) rotieren wir sauber
         Vector3f worldUp = new Vector3f(0, 0, 1);
-        // Wenn die Kamera fast senkrecht nach oben/unten schaut, right als Referenz
         Vector3f right = new Vector3f();
         forward.cross(worldUp, right);
         if (right.length() < 0.001f) {
-            // Blickrichtung fast parallel zu Z → fallback
-            worldUp.set(0, 1, 0);
+            // Blickrichtung parallel zu Z → Right über Y-Up
+            worldUp.set(0, 1, 0); // temporär Y als up für die Kreuzprodukt-Berechnung
             forward.cross(worldUp, right);
         }
         right.normalize();
