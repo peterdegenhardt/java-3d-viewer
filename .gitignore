@@ -3,3 +3,15 @@
 
 # Ignore Gradle build output directory
 build
+
+# Ignore Gradle GUI config
+local.properties
+
+# Ignore IDE files
+.idea/
+*.iml
+.vscode/
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
