@@ -86,6 +86,14 @@ public class Scene {
         meshes.add(mesh);
     }
 
+    public Mesh getMesh(int index) {
+        return meshes.get(index);
+    }
+
+    public int getMeshCount() {
+        return meshes.size();
+    }
+
     public void render(Camera camera) {
         int[] viewport = new int[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
