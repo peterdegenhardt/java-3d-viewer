@@ -8,7 +8,9 @@ import static org.lwjgl.glfw.GLFW.*;
 public class Camera {
 
     private Vector3f position;
-    // Für Z-up Koordinatensystem: yaw um Z, pitch kippt aus der XY-Ebene
+    // Z-up System:
+    // yaw: Rotation um Z-Achse (links/rechts)
+    // pitch: Kippen aus der XY-Ebene (oben/unten)
     private float yaw = -90.0f;
     private float pitch = 0.0f;
     private float lastX = 640.0f;
@@ -20,7 +22,7 @@ public class Camera {
     private float farPlane = 1000.0f;
 
     public Camera() {
-        this.position = new Vector3f(0, 0, 5);
+        this.position = new Vector3f(0, 5, 3);
     }
 
     public void resetMouse() {
@@ -57,13 +59,19 @@ public class Camera {
     }
 
     public void move(float dx, float dy) {
-        // Move relative to camera facing direction in XY plane (Z-up)
+        // Horizontale Bewegung in der XY-Ebene (Z-up)
         Vector3f forward = getForward();
-        // Remove Z component for horizontal movement
-        Vector3f flatForward = new Vector3f(forward.x, forward.y, 0).normalize();
+        // Nur XY-Komponente für horizontale Bewegung
+        Vector3f flatForward = new Vector3f(forward.x, forward.y, 0);
+        if (flatForward.length() > 0.001f) {
+            flatForward.normalize();
+        } else {
+            flatForward.set(0, 1, 0); // Fallback wenn genau nach oben/unten
+        }
+
+        // Right = flatForward × (0,0,1)
         Vector3f right = new Vector3f();
-        Vector3f up = new Vector3f(0, 0, 1);
-        flatForward.cross(up, right).normalize();
+        flatForward.cross(new Vector3f(0, 0, 1), right).normalize();
 
         position.add(right.mul(dx));
         position.add(flatForward.mul(dy));
@@ -78,9 +86,11 @@ public class Camera {
     }
 
     public Vector3f getForward() {
+        // Im Z-up: yaw rotiert um Z, pitch kippt aus XY
         Vector3f forward = new Vector3f();
-        forward.x = (float) (Math.cos(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
-        forward.y = (float) (Math.sin(Math.toRadians(yaw)) * Math.cos(Math.toRadians(pitch)));
+        float cosPitch = (float) Math.cos(Math.toRadians(pitch));
+        forward.x = (float) (Math.cos(Math.toRadians(yaw)) * cosPitch);
+        forward.y = (float) (Math.sin(Math.toRadians(yaw)) * cosPitch);
         forward.z = (float) Math.sin(Math.toRadians(pitch));
         forward.normalize();
         return forward;
@@ -89,7 +99,22 @@ public class Camera {
     public Matrix4f getViewMatrix() {
         Vector3f forward = getForward();
         Vector3f center = new Vector3f(position).add(forward);
-        return new Matrix4f().lookAt(position, center, new Vector3f(0, 0, 1));
+
+        // Up-Vektor dynamisch berechnen: wenn pitch extrem ist, nicht kippen
+        Vector3f worldUp = new Vector3f(0, 0, 1);
+        // Wenn die Kamera fast senkrecht nach oben/unten schaut, right als Referenz
+        Vector3f right = new Vector3f();
+        forward.cross(worldUp, right);
+        if (right.length() < 0.001f) {
+            // Blickrichtung fast parallel zu Z → fallback
+            worldUp.set(0, 1, 0);
+            forward.cross(worldUp, right);
+        }
+        right.normalize();
+        Vector3f up = new Vector3f();
+        right.cross(forward, up).normalize();
+
+        return new Matrix4f().lookAt(position, center, up);
     }
 
     public Matrix4f getProjectionMatrix(int width, int height) {
