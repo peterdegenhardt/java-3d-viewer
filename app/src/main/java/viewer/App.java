@@ -23,6 +23,8 @@ public class App {
     private STLLoader stlLoader;
     private boolean[] keys = new boolean[GLFW_KEY_LAST + 1];
 
+    private boolean mouseLocked = true;
+
     public void run() {
         init();
         loop();
@@ -63,15 +65,25 @@ public class App {
 
         // Setup callbacks
         glfwSetKeyCallback(window, (w, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
-                glfwSetWindowShouldClose(window, true);
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+                mouseLocked = !mouseLocked;
+                if (mouseLocked) {
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                } else {
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                    camera.resetMouse(); // reset mouse smoothing
+                }
+            }
             if (key >= 0 && key < keys.length) {
                 keys[key] = action != GLFW_RELEASE;
             }
         });
 
+        // ... callback setup ...
         glfwSetCursorPosCallback(window, (w, xpos, ypos) -> {
-            camera.handleMouse(xpos, ypos);
+            if (mouseLocked) {
+                camera.handleMouse(xpos, ypos);
+            }
         });
 
         glfwSetScrollCallback(window, (w, xoffset, yoffset) -> {
@@ -100,11 +112,12 @@ public class App {
         });
 
         System.out.println("=== 3D STL Viewer ===");
-        System.out.println("WASD / Pfeiltasten = bewegen");
+        System.out.println("Pfeiltasten / WASD = bewegen");
         System.out.println("Maus = Kamera drehen");
+        System.out.println("ESC = Maus frei/sperren (für Drag & Drop)");
         System.out.println("Scroll = Zoom");
         System.out.println("STL-Dateien reinziehen = laden");
-        System.out.println("ESC = beenden");
+        System.out.println("ESC im Maus-Frei-Modus = beenden");
     }
 
     private void loop() {
@@ -131,8 +144,8 @@ public class App {
             speed *= 3.0f;
 
         float dx = 0, dz = 0;
-        if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) dz -= speed;
-        if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN]) dz += speed;
+        if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP]) dz += speed;
+        if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN]) dz -= speed;
         if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT]) dx -= speed;
         if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) dx += speed;
 

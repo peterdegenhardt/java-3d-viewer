@@ -22,6 +22,10 @@ public class Camera {
         this.position = new Vector3f(0, 5, 10);
     }
 
+    public void resetMouse() {
+        firstMouse = true;
+    }
+
     public void handleMouse(double xpos, double ypos) {
         if (firstMouse) {
             lastX = (float) xpos;
