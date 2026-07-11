@@ -99,23 +99,29 @@ public class Scene {
         floorVertCount = vertCount;
     }
 
-    /** Vertikalgrid: Pfeiler von y=0.05 bis y=GRID_HEIGHT an jedem Kreuzungspunkt */
+    /** Vertikalgrid: horizontale Etagen alle GRID_STEP Meter nach oben */
     private void initVertData(float ox, float oz) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
-        float y0 = 0.05f;
-        float y1 = GRID_HEIGHT;
+        int levels = (int)(GRID_HEIGHT / GRID_STEP); // 10 Etagen
 
-        // An jedem Kreuzungspunkt (21×21 Punkte) ein vertikaler Strich
-        int vertCount = (divs * 2 + 1) * (divs * 2 + 1) * 2; // 21×21×2 = 882 Vertices
-        float[] arr = new float[vertCount * 3];
+        // Pro Etage: 21 Linien parallel Z + 21 Linien parallel X = 42 Linien = 84 Vertices
+        int vertCount = levels * (divs * 2 + 1) * 4; // 10 × 84 = 840 Vertices
+        float[] arr = new float[vertCount * 3]; // 2520 Floats
 
         int idx = 0;
-        for (int ix = -divs; ix <= divs; ix++) {
-            float x = ox + ix * GRID_STEP;
-            for (int iz = -divs; iz <= divs; iz++) {
-                float z = oz + iz * GRID_STEP;
-                arr[idx++] = x; arr[idx++] = y0; arr[idx++] = z;
-                arr[idx++] = x; arr[idx++] = y1; arr[idx++] = z;
+        for (int level = 1; level <= levels; level++) {
+            float y = level * GRID_STEP;
+            // Linien parallel zur Z-Achse
+            for (int i = -divs; i <= divs; i++) {
+                float x = ox + i * GRID_STEP;
+                arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
+                arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
+            }
+            // Linien parallel zur X-Achse
+            for (int i = -divs; i <= divs; i++) {
+                float z = oz + i * GRID_STEP;
+                arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
+                arr[idx++] = ox + GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
             }
         }
 
