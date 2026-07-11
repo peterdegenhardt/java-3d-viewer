@@ -231,6 +231,18 @@ public class Scene {
             if (selectedMesh == i) meshShader.setVec3("uObjectColor", 1.0f, 0.9f, 0.4f);
             else meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f);
             mesh.render();
+
+            // Debug: position info für erstes Mesh
+            if (i == 0) {
+                Vector3f p = mesh.getPosition();
+                System.out.println("Mesh " + i + " pos=("
+                    + String.format("%.1f", p.x) + ","
+                    + String.format("%.1f", p.y) + ","
+                    + String.format("%.1f", p.z) + ") cam=("
+                    + String.format("%.1f", camera.getPosition().x) + ","
+                    + String.format("%.1f", camera.getPosition().y) + ","
+                    + String.format("%.1f", camera.getPosition().z) + ")");
+            }
         }
 
         // --- Grid: Boden + Etagen + Senkrechte ---
