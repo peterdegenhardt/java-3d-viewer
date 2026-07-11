@@ -19,7 +19,7 @@ public class Scene {
     public int selectedMesh = -1;
 
     // 3D Grid (dynamisch)
-    private int gridVao, gridVbo;
+    private int gridVao = 0, gridVbo = 0;
     private int gridCapacity = 0;
     public boolean gridVisible = true;
 
@@ -59,17 +59,15 @@ public class Scene {
         glBindVertexArray(0);
     }
 
-    /**
-     * Erzeugt ein lokales 3D-Raster um einen Mittelpunkt herum.
-     * Nur neu berechnen wenn die Kamera sich um mehr als 1m bewegt hat.
-     */
+    /** Erzeugt ein lokales 3D-Raster um einen Mittelpunkt herum. */
     private void updateGrid(Vector3f cameraPos) {
         if (cameraPos == null) return;
 
-        // Nur updaten wenn Kamera sich weit genug bewegt hat
+        // Erstes Mal immer ausführen
         float cx = cameraPos.x;
         float cz = cameraPos.z;
-        if (Math.abs(cx - lastGridX) < GRID_STEP && Math.abs(cz - lastGridZ) < GRID_STEP)
+        if (lastGridX != Float.MAX_VALUE &&
+            Math.abs(cx - lastGridX) < GRID_STEP && Math.abs(cz - lastGridZ) < GRID_STEP)
             return;
 
         lastGridX = cx;
@@ -121,6 +119,8 @@ public class Scene {
         glBufferData(GL_ARRAY_BUFFER, fb, GL_STREAM_DRAW);
 
         gridCapacity = count;
+        System.out.println("Grid aktualisiert: " + count + " Vertices um (" 
+            + String.format("%.0f", originX) + ", " + String.format("%.0f", originZ) + ")");
     }
 
     public void toggleGrid() {
