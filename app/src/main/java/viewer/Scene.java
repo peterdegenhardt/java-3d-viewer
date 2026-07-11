@@ -21,17 +21,22 @@ public class Scene {
     private List<Mesh> meshes;
     public int selectedMesh = -1;
 
-    // Grid: ein VAO+VBO, Inhalt = Einheitsgrid von -10..+10 auf X und Z, zentriert um 0
-    private int gridVao = 0;
-    private int gridVbo = 0;
-    private int gridVertCount = 0;
+    // Bodengrid: horizontale Linien (auf y=0.05)
+    private int floorVao = 0;
+    private int floorVbo = 0;
+    private int floorVertCount = 0;
+
+    // Vertikales Grid: Pfeiler, die nach oben gehen
+    private int vertVao = 0;
+    private int vertVbo = 0;
+    private int vertVertCount = 0;
 
     public boolean gridVisible = true;
 
     public static final float GRID_RADIUS = 10f;
     public static final float GRID_STEP = 1f;
+    public static final float GRID_HEIGHT = 10f;
 
-    // Kameraposition beim letzten Draw (für Caching)
     private float lastGridX = Float.NaN;
     private float lastGridZ = Float.NaN;
     private boolean gridBufferDirty = true;
@@ -39,35 +44,47 @@ public class Scene {
     public Scene() {
         meshes = new ArrayList<>();
         initShaders();
-        gridVao = glGenVertexArrays();
-        gridVbo = glGenBuffers();
-        glBindVertexArray(gridVao);
-        glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
-        // Zuerst Grid-Daten laden, DANN Attributpointer setzen
-        initGridData(0, 0);
+
+        // === Boden-VAO ===
+        floorVao = glGenVertexArrays();
+        floorVbo = glGenBuffers();
+        glBindVertexArray(floorVao);
+        glBindBuffer(GL_ARRAY_BUFFER, floorVbo);
+        initFloorData(0, 0);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
-        System.out.println("Scene init complete. Grid VAO=" + gridVao + " VBO=" + gridVbo + " count=" + gridVertCount);
+
+        // === Vertikal-VAO ===
+        vertVao = glGenVertexArrays();
+        vertVbo = glGenBuffers();
+        glBindVertexArray(vertVao);
+        glBindBuffer(GL_ARRAY_BUFFER, vertVbo);
+        initVertData(0, 0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+
+        System.out.println("Scene init. Floor: VAO=" + floorVao + " VBO=" + floorVbo + " verts=" + floorVertCount);
+        System.out.println("Scene init. Vert:  VAO=" + vertVao + " VBO=" + vertVbo + " verts=" + vertVertCount);
     }
 
-    /** Baut Grid-Daten für eine gegebene Bodenposition (ox, oz) und lädt sie in den VBO */
-    private void initGridData(float ox, float oz) {
+    /** Bodengrid: horizontale Linien auf y=0.05 */
+    private void initFloorData(float ox, float oz) {
         int divs = (int)(GRID_RADIUS / GRID_STEP);
         float y = 0.05f;
 
-        // 21 Linien X-Richtung + 21 Linien Z-Richtung, je 2 Vertices, je 3 Floats
-        int vertCount = (divs * 2 + 1) * 2 * 2; // 84 Vertices
-        float[] arr = new float[vertCount * 3]; // 252 Floats
+        int vertCount = (divs * 2 + 1) * 4; // 84 Vertices: 42 Linien × 2
+        float[] arr = new float[vertCount * 3];
 
         int idx = 0;
-        // Linien parallel zur Z-Achse (konstantes X, Z variiert)
+        // Linien parallel zur Z-Achse (X konstant)
         for (int i = -divs; i <= divs; i++) {
             float x = ox + i * GRID_STEP;
             arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz - GRID_RADIUS;
             arr[idx++] = x; arr[idx++] = y; arr[idx++] = oz + GRID_RADIUS;
         }
-        // Linien parallel zur X-Achse (konstantes Z, X variiert)
+        // Linien parallel zur X-Achse (Z konstant)
         for (int i = -divs; i <= divs; i++) {
             float z = oz + i * GRID_STEP;
             arr[idx++] = ox - GRID_RADIUS; arr[idx++] = y; arr[idx++] = z;
@@ -77,10 +94,37 @@ public class Scene {
         FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer()
                 .put(arr).flip();
-
-        glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, floorVbo);
         glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
-        gridVertCount = arr.length / 3;
+        floorVertCount = vertCount;
+    }
+
+    /** Vertikalgrid: Pfeiler von y=0.05 bis y=GRID_HEIGHT an jedem Kreuzungspunkt */
+    private void initVertData(float ox, float oz) {
+        int divs = (int)(GRID_RADIUS / GRID_STEP);
+        float y0 = 0.05f;
+        float y1 = GRID_HEIGHT;
+
+        // An jedem Kreuzungspunkt (21×21 Punkte) ein vertikaler Strich
+        int vertCount = (divs * 2 + 1) * (divs * 2 + 1) * 2; // 21×21×2 = 882 Vertices
+        float[] arr = new float[vertCount * 3];
+
+        int idx = 0;
+        for (int ix = -divs; ix <= divs; ix++) {
+            float x = ox + ix * GRID_STEP;
+            for (int iz = -divs; iz <= divs; iz++) {
+                float z = oz + iz * GRID_STEP;
+                arr[idx++] = x; arr[idx++] = y0; arr[idx++] = z;
+                arr[idx++] = x; arr[idx++] = y1; arr[idx++] = z;
+            }
+        }
+
+        FloatBuffer fb = ByteBuffer.allocateDirect(arr.length * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer()
+                .put(arr).flip();
+        glBindBuffer(GL_ARRAY_BUFFER, vertVbo);
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        vertVertCount = vertCount;
     }
 
     private void initShaders() {
@@ -145,15 +189,16 @@ public class Scene {
             mesh.render();
         }
 
-        // --- Grid: folgt der Kamera auf dem Boden ---
+        // --- Grid: Boden + Vertikalen ---
         if (gridVisible) {
             Vector3f pos = camera.getPosition();
             float gx = (float) Math.floor(pos.x / GRID_STEP) * GRID_STEP;
             float gz = (float) Math.floor(pos.z / GRID_STEP) * GRID_STEP;
 
-            // Nur neu laden wenn Kamera sich um ein Meter bewegt hat
+            // Neu laden wenn Kamera sich > 1m bewegt hat
             if (gridBufferDirty || gx != lastGridX || gz != lastGridZ) {
-                initGridData(gx, gz);
+                initFloorData(gx, gz);
+                initVertData(gx, gz);
                 lastGridX = gx;
                 lastGridZ = gz;
                 gridBufferDirty = false;
@@ -167,8 +212,16 @@ public class Scene {
             gridShader.setMat4("uView", view.get(new float[16]));
             gridShader.setVec3("uObjectColor", 0.3f, 0.3f, 0.42f);
 
-            glBindVertexArray(gridVao);
-            glDrawArrays(GL_LINES, 0, gridVertCount);
+            // Boden zeichnen
+            glBindVertexArray(floorVao);
+            glDrawArrays(GL_LINES, 0, floorVertCount);
+            glBindVertexArray(0);
+
+            // Vertikalen zeichnen (dünner, heller)
+            gridShader.setVec3("uObjectColor", 0.25f, 0.25f, 0.35f);
+            glLineWidth(1.5f);
+            glBindVertexArray(vertVao);
+            glDrawArrays(GL_LINES, 0, vertVertCount);
             glBindVertexArray(0);
 
             glEnable(GL_DEPTH_TEST);
@@ -180,7 +233,9 @@ public class Scene {
         meshShader.cleanup();
         gridShader.cleanup();
         for (Mesh mesh : meshes) mesh.cleanup();
-        glDeleteVertexArrays(gridVao);
-        glDeleteBuffers(gridVbo);
+        glDeleteVertexArrays(floorVao);
+        glDeleteBuffers(floorVbo);
+        glDeleteVertexArrays(vertVao);
+        glDeleteBuffers(vertVbo);
     }
 }
