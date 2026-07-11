@@ -145,8 +145,10 @@ public class ShaderProgram {
             #version 330 core
             out vec4 FragColor;
 
+            uniform vec3 uObjectColor;
+
             void main() {
-                FragColor = vec4(0.25, 0.25, 0.35, 1.0);
+                FragColor = vec4(uObjectColor, 1.0);
             }
             """;
     }

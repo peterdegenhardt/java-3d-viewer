@@ -3,6 +3,9 @@ package viewer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,26 +21,23 @@ public class Scene {
     private List<Mesh> meshes;
     public int selectedMesh = -1;
 
-    // Boden-Grid (horizontal)
-    private int floorVao, floorVbo, floorCount;
+    // Einfach: ein einziger VBO+VAO fürs gesamte Grid
+    private int gridVao = 0;
+    private int gridVbo = 0;
+    private int gridCount = 0;
 
-    // Vertikal-Grid
-    private int vertVao, vertVbo, vertCount;
+    // Zusätzliches Backup: direkter Draw mit immediatem Modus (Core Profile via glDrawArrays)
+    // als harter Test: ein großes rotes X
+    private int testVao = 0;
+    private int testVbo = 0;
+    private static final int TEST_COUNT = 4; // 2 Linien = 4 Vertices
 
     public boolean gridVisible = true;
-
-    // Kamera-Raster-Position (damit wir nur bei Bewegung neu berechnen)
-    private float gridOx = Float.NaN;
-    private float gridOz = Float.NaN;
-
-    public static final float GRID_RADIUS = 10f;
-    public static final float GRID_STEP = 1f;
-    public static final float GRID_HEIGHT = 20f;
 
     public Scene() {
         meshes = new ArrayList<>();
         initShaders();
-        initGridBuffers();
+        initGridDebug();
     }
 
     private void initShaders() {
@@ -51,78 +51,49 @@ public class Scene {
         );
     }
 
-    private void initGridBuffers() {
-        floorVao = glGenVertexArrays();
-        floorVbo = glGenBuffers();
-        glBindVertexArray(floorVao);
-        glBindBuffer(GL_ARRAY_BUFFER, floorVbo);
+    /** Einfaches statisches Test-Grid: 2 große sich kreuzende Linien */
+    private void initGridDebug() {
+        // Grid VAO+VBO
+        gridVao = glGenVertexArrays();
+        gridVbo = glGenBuffers();
+        glBindVertexArray(gridVao);
+        glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
+
+        // Grid = 1 horizontal + 1 vertikal: 2 Linien = 4 Vertices
+        float[] gridData = {
+            -10f, 0.05f, 0f,   10f, 0.05f, 0f,   // horizontale Linie (X-Achse)
+             0f,  0.05f,-10f,   0f, 0.05f, 10f    // vertikale Linie (Z-Achse)
+        };
+        FloatBuffer fb = ByteBuffer.allocateDirect(gridData.length * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer()
+                .put(gridData).flip();
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
 
-        vertVao = glGenVertexArrays();
-        vertVbo = glGenBuffers();
-        glBindVertexArray(vertVao);
-        glBindBuffer(GL_ARRAY_BUFFER, vertVbo);
+        gridCount = 2; // 2 Linien = 4 Vertices insgesamt, also 2 Segmente
+
+        // Test-Grid: großes rotes X zwischen -8 und +8
+        testVao = glGenVertexArrays();
+        testVbo = glGenBuffers();
+        glBindVertexArray(testVao);
+        glBindBuffer(GL_ARRAY_BUFFER, testVbo);
+
+        float[] testData = {
+            -8f, 0.1f, -8f,    8f, 0.1f,  8f,   // Diagonale 1
+            -8f, 0.1f,  8f,    8f, 0.1f, -8f    // Diagonale 2
+        };
+        FloatBuffer tb = ByteBuffer.allocateDirect(testData.length * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer()
+                .put(testData).flip();
+        glBufferData(GL_ARRAY_BUFFER, tb, GL_STATIC_DRAW);
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * 4, 0);
         glEnableVertexAttribArray(0);
         glBindVertexArray(0);
-    }
 
-    private void updateGrid(Vector3f cameraPos) {
-        if (cameraPos == null) return;
-
-        float ox = (float) Math.floor(cameraPos.x / GRID_STEP) * GRID_STEP;
-        float oz = (float) Math.floor(cameraPos.z / GRID_STEP) * GRID_STEP;
-
-        if (ox == gridOx && oz == gridOz && !Float.isNaN(gridOx))
-            return;
-
-        gridOx = ox;
-        gridOz = oz;
-
-        int divs = (int)(GRID_RADIUS / GRID_STEP);
-
-        // === BODEN (horizontale Linien) ===
-        List<Float> floorVerts = new ArrayList<>();
-        for (int i = -divs; i <= divs; i++) {
-            float z = oz + i * GRID_STEP;
-            floorVerts.add(ox - GRID_RADIUS); floorVerts.add(0.01f); floorVerts.add(z);
-            floorVerts.add(ox + GRID_RADIUS); floorVerts.add(0.01f); floorVerts.add(z);
-        }
-        for (int i = -divs; i <= divs; i++) {
-            float x = ox + i * GRID_STEP;
-            floorVerts.add(x); floorVerts.add(0.01f); floorVerts.add(oz - GRID_RADIUS);
-            floorVerts.add(x); floorVerts.add(0.01f); floorVerts.add(oz + GRID_RADIUS);
-        }
-
-        floorCount = floorVerts.size() / 3;
-        uploadBuffer(floorVbo, floorVerts);
-
-        // === VERTIKAL ===
-        List<Float> vertVerts = new ArrayList<>();
-        for (int ix = -divs; ix <= divs; ix++) {
-            float x = ox + ix * GRID_STEP;
-            for (int iz = -divs; iz <= divs; iz++) {
-                float z = oz + iz * GRID_STEP;
-                vertVerts.add(x); vertVerts.add(0.01f);       vertVerts.add(z);
-                vertVerts.add(x); vertVerts.add(GRID_HEIGHT); vertVerts.add(z);
-            }
-        }
-
-        vertCount = vertVerts.size() / 3;
-        uploadBuffer(vertVbo, vertVerts);
-    }
-
-    private void uploadBuffer(int vbo, List<Float> verts) {
-        float[] arr = new float[verts.size()];
-        for (int i = 0; i < verts.size(); i++) arr[i] = verts.get(i);
-        java.nio.FloatBuffer fb = java.nio.ByteBuffer.allocateDirect(arr.length * 4)
-                .order(java.nio.ByteOrder.nativeOrder())
-                .asFloatBuffer()
-                .put(arr).flip();
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, fb, GL_STREAM_DRAW);
+        System.out.println("Grid VAO=" + gridVao + " VBO=" + gridVbo + " count=" + gridCount);
+        System.out.println("Test VAO=" + testVao + " VBO=" + testVbo);
     }
 
     public void toggleGrid() {
@@ -176,26 +147,29 @@ public class Scene {
             mesh.render();
         }
 
-        // --- Grid (ohne Depth-Test, immer sichtbar) ---
+        // --- Grid ---
         if (gridVisible) {
-            updateGrid(camera.getPosition());
             glDisable(GL_DEPTH_TEST);
+            glLineWidth(4.0f); // extra dick
 
             gridShader.use();
             gridShader.setMat4("uProjection", projection.get(new float[16]));
             gridShader.setMat4("uView", view.get(new float[16]));
 
-            // Boden
-            glBindVertexArray(floorVao);
-            glDrawArrays(GL_LINES, 0, floorCount);
+            // Normal-Grid (hellgrau): zwei sich kreuzende Linien am Ursprung
+            gridShader.setVec3("uObjectColor", 0.25f, 0.25f, 0.35f);
+            glBindVertexArray(gridVao);
+            glDrawArrays(GL_LINES, 0, gridCount * 2);
             glBindVertexArray(0);
 
-            // Vertikalen
-            glBindVertexArray(vertVao);
-            glDrawArrays(GL_LINES, 0, vertCount);
+            // Test-Grid (rot): großes X
+            gridShader.setVec3("uObjectColor", 1.0f, 0.2f, 0.2f);
+            glBindVertexArray(testVao);
+            glDrawArrays(GL_LINES, 0, 4);
             glBindVertexArray(0);
 
             glEnable(GL_DEPTH_TEST);
+            glLineWidth(1.0f);
         }
     }
 
@@ -203,9 +177,9 @@ public class Scene {
         meshShader.cleanup();
         gridShader.cleanup();
         for (Mesh mesh : meshes) mesh.cleanup();
-        glDeleteVertexArrays(floorVao);
-        glDeleteBuffers(floorVbo);
-        glDeleteVertexArrays(vertVao);
-        glDeleteBuffers(vertVbo);
+        glDeleteVertexArrays(gridVao);
+        glDeleteBuffers(gridVbo);
+        glDeleteVertexArrays(testVao);
+        glDeleteBuffers(testVbo);
     }
 }
