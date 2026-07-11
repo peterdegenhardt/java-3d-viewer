@@ -120,12 +120,12 @@ public class STLLoader {
                 float nz = buffer.getFloat();
                 Vector3f normal = new Vector3f(nx, nz, ny); // alte Z→Y, alte Y→Z
 
-                // 3 vertices
+                // 3 vertices (STL-Format: x,y,z mit y=height, z=depth)
                 for (int v = 0; v < 3; v++) {
                     float vx = buffer.getFloat();
-                    float vy = buffer.getFloat(); // alte Z (Tiefe)
-                    float vz = buffer.getFloat(); // alte Y (Höhe)
-                    positions.add(new Vector3f(vx, vy, vz)); // schon richtig: x, y(tiefe), z(hoehe)
+                    float vz = buffer.getFloat(); // alte Y (Höhe) → neue Z
+                    float vy = buffer.getFloat(); // alte Z (Tiefe) → neue Y
+                    positions.add(new Vector3f(vx, vy, vz));
                     normals.add(normal);
                 }
 
