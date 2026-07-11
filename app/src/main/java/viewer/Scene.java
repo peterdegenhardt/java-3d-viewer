@@ -113,13 +113,12 @@ public class Scene {
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, gridVbo);
-        glBufferData(GL_ARRAY_BUFFER, (long) verts.length * 4, GL_STREAM_DRAW);
         java.nio.FloatBuffer fb = java.nio.ByteBuffer.allocateDirect(verts.length * 4)
                 .order(java.nio.ByteOrder.nativeOrder())
                 .asFloatBuffer()
                 .put(verts)
                 .flip();
-        glBufferSubData(GL_ARRAY_BUFFER, 0, fb);
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STREAM_DRAW);
 
         gridCapacity = count;
     }
