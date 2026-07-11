@@ -81,14 +81,23 @@ public class STLLoader {
         System.out.println("  Loaded " + (positions.size() / 3) + " triangles (" + name + ")");
 
         Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
-        // Auf Boden setzen + vor die Kamera platzieren
+        // Auf Boden setzen + vor die Kamera platzieren + skalieren
         float minZ = getMinZ(positions);
         float maxZ = getMaxZ(positions);
+        float height = maxZ - minZ;
         mesh.getPosition().z = -minZ; // Boden bei z=0
         mesh.getPosition().y = 3;     // 3 Meter vor der Kamera
+        // Automatisch skalieren, damit max. Höhe 3m
+        if (height > 3f) {
+            float s = 3f / height;
+            mesh.getScale().set(s, s, s);
+            System.out.println("  Auto-scaled by " + String.format("%.3f", s) + " (original height=" + String.format("%.2f", height) + " -> 3m)");
+        }
         System.out.println("  Bounds: z=[" + String.format("%.2f", minZ) + ".." + String.format("%.2f", maxZ) + "]"
-            + " height=" + String.format("%.2f", maxZ - minZ)
-            + " placed at (0, 3, " + String.format("%.2f", -minZ) + ")");
+            + " height=" + String.format("%.2f", height)
+            + " placed at (" + String.format("%.1f", mesh.getPosition().x)
+            + ", " + String.format("%.1f", mesh.getPosition().y)
+            + ", " + String.format("%.1f", mesh.getPosition().z) + ")");
         return mesh;
     }
 
@@ -139,11 +148,19 @@ public class STLLoader {
         Mesh mesh = Mesh.fromTriangleList(positions, normals, name);
         float minZ = getMinZ(positions);
         float maxZ = getMaxZ(positions);
+        float height = maxZ - minZ;
         mesh.getPosition().z = -minZ;
         mesh.getPosition().y = 3;
+        if (height > 3f) {
+            float s = 3f / height;
+            mesh.getScale().set(s, s, s);
+            System.out.println("  Auto-scaled by " + String.format("%.3f", s) + " (original height=" + String.format("%.2f", height) + " -> 3m)");
+        }
         System.out.println("  Bounds: z=[" + String.format("%.2f", minZ) + ".." + String.format("%.2f", maxZ) + "]"
-            + " height=" + String.format("%.2f", maxZ - minZ)
-            + " placed at (0, 3, " + String.format("%.2f", -minZ) + ")");
+            + " height=" + String.format("%.2f", height)
+            + " placed at (" + String.format("%.1f", mesh.getPosition().x)
+            + ", " + String.format("%.1f", mesh.getPosition().y)
+            + ", " + String.format("%.1f", mesh.getPosition().z) + ")");
         return mesh;
     }
 
