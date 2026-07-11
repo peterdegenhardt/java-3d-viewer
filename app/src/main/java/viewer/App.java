@@ -85,6 +85,10 @@ public class App {
                 }
             }
 
+            if (key == GLFW_KEY_G && action == GLFW_RELEASE) {
+                scene.toggleGrid();
+            }
+
             if (key == GLFW_KEY_E && action == GLFW_RELEASE) {
                 // E = Edit-Modus umschalten
                 if (mode == Mode.FLIEGEN) {

@@ -16,15 +16,21 @@ public class Scene {
     private ShaderProgram meshShader;
     private ShaderProgram gridShader;
     private List<Mesh> meshes;
-    public int selectedMesh = -1; // Index des ausgewählten Meshs (für Highlight)
+    public int selectedMesh = -1;
 
-    // Grid
+    // 3D Grid
     private int gridVao, gridVbo, gridCount;
+    public boolean gridVisible = true;
+
+    // Weltgröße
+    public static final float WORLD_SIZE = 250f;     // 500m Durchmesser (±250)
+    public static final float WORLD_HEIGHT = 20f;     // 20m hoch
+    public static final float GRID_STEP = 1f;         // 1m Raster
 
     public Scene() {
         meshes = new ArrayList<>();
         initShaders();
-        initGrid();
+        initGrid3D();
     }
 
     private void initShaders() {
@@ -38,26 +44,42 @@ public class Scene {
         );
     }
 
-    private void initGrid() {
-        int size = 20; // half-size in each direction
-        int divisions = 20;
-        float step = (float) size / divisions;
-
+    /**
+     * Erzeugt ein 3D-Raster mit 1m Auflösung:
+     * - Bodenebene (y=0): X- und Z-Linien im Bereich ±250m
+     * - Y-Linien: vertikale Striche an jedem Gitterpunkt bis 20m Höhe
+     */
+    private void initGrid3D() {
         List<Float> vertices = new ArrayList<>();
+        int divs = (int)(WORLD_SIZE / GRID_STEP);  // 250
 
-        // X lines
-        for (int i = -divisions; i <= divisions; i++) {
-            float z = i * step;
-            vertices.add((float) -size); vertices.add(0.0f); vertices.add(z);
-            vertices.add((float) size);  vertices.add(0.0f); vertices.add(z);
+        // === Boden: X-Linien (alle 1m in Z-Richtung) ===
+        for (int i = -divs; i <= divs; i++) {
+            float z = i * GRID_STEP;
+            vertices.add(-WORLD_SIZE); vertices.add(0f); vertices.add(z);
+            vertices.add( WORLD_SIZE); vertices.add(0f); vertices.add(z);
         }
 
-        // Z lines
-        for (int i = -divisions; i <= divisions; i++) {
-            float x = i * step;
-            vertices.add(x); vertices.add(0.0f); vertices.add((float) -size);
-            vertices.add(x); vertices.add(0.0f); vertices.add((float) size);
+        // === Boden: Z-Linien (alle 1m in X-Richtung) ===
+        for (int i = -divs; i <= divs; i++) {
+            float x = i * GRID_STEP;
+            vertices.add(x); vertices.add(0f); vertices.add(-WORLD_SIZE);
+            vertices.add(x); vertices.add(0f); vertices.add( WORLD_SIZE);
         }
+
+        // === Vertikale Linien (nur alle 5m, sonst zu überladen) ===
+        int step5 = 5; // alle 5 Meter vertikale Striche
+        for (int ix = -divs; ix <= divs; ix += step5) {
+            float x = ix * GRID_STEP;
+            for (int iz = -divs; iz <= divs; iz += step5) {
+                float z = iz * GRID_STEP;
+                vertices.add(x); vertices.add(0f);             vertices.add(z);
+                vertices.add(x); vertices.add(WORLD_HEIGHT);  vertices.add(z);
+            }
+        }
+
+        // === Umrandung der Grundfläche (dickere Linien) ===
+        // wird aktuell nicht separat behandelt, aber durch die Boden-Linien abgedeckt
 
         gridCount = vertices.size() / 3;
         float[] verts = new float[vertices.size()];
@@ -81,6 +103,15 @@ public class Scene {
         glEnableVertexAttribArray(0);
 
         glBindVertexArray(0);
+
+        System.out.println("3D-Grid: " + gridCount + " Linien, " 
+            + (int)(WORLD_SIZE*2) + "x" + (int)(WORLD_SIZE*2) + "m Grundfläche, "
+            + (int)WORLD_HEIGHT + "m Höhe, Auflösung " + (int)GRID_STEP + "m");
+    }
+
+    public void toggleGrid() {
+        gridVisible = !gridVisible;
+        System.out.println("Grid " + (gridVisible ? "EIN" : "AUS"));
     }
 
     public void addMesh(Mesh mesh) {
@@ -104,23 +135,23 @@ public class Scene {
         Matrix4f projection = camera.getProjectionMatrix(width, height);
         Matrix4f view = camera.getViewMatrix();
 
-        // --- Render grid ---
-        glDisable(GL_DEPTH_TEST);
-        gridShader.use();
-        gridShader.setMat4("uProjection", projection.get(new float[16]));
-        gridShader.setMat4("uView", view.get(new float[16]));
-        glBindVertexArray(gridVao);
-        glDrawArrays(GL_LINES, 0, gridCount);
-        glBindVertexArray(0);
-        glEnable(GL_DEPTH_TEST);
+        // --- Render 3D Grid (nur wenn sichtbar) ---
+        if (gridVisible) {
+            gridShader.use();
+            gridShader.setMat4("uProjection", projection.get(new float[16]));
+            gridShader.setMat4("uView", view.get(new float[16]));
+            glBindVertexArray(gridVao);
+            glDrawArrays(GL_LINES, 0, gridCount);
+            glBindVertexArray(0);
+        }
 
         // --- Render meshes ---
         meshShader.use();
         meshShader.setMat4("uProjection", projection.get(new float[16]));
         meshShader.setMat4("uView", view.get(new float[16]));
 
-        // Light
-        meshShader.setVec3("uLightPos", 10, 20, 10);
+        // Light (höher gesetzt für größeren Bereich)
+        meshShader.setVec3("uLightPos", 100, 150, 100);
         meshShader.setVec3("uLightColor", 1, 1, 1);
         meshShader.setVec3("uViewPos", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
         meshShader.setFloat("uAmbientStrength", 0.3f);
@@ -136,11 +167,10 @@ public class Scene {
 
             meshShader.setMat4("uModel", model.get(new float[16]));
 
-            // Ausgewähltes Mesh hervorheben (gelblich)
             if (selectedMesh == i) {
-                meshShader.setVec3("uObjectColor", 1.0f, 0.9f, 0.4f); // gold/gelb
+                meshShader.setVec3("uObjectColor", 1.0f, 0.9f, 0.4f);
             } else {
-                meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f); // bläulich
+                meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f);
             }
 
             mesh.render();
