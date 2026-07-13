@@ -146,10 +146,11 @@ public class OBJLoader {
                     }
 
                     // Fan-triangulation: (0,1,2), (0,2,3), (0,3,4), ...
+                    // Nach Y-up→Z-up tauschen wir die Windungsrichtung: (0,2,1) statt (0,1,2)
                     for (int i = 1; i < verts.size() - 1; i++) {
                         faceData.add(verts.get(0));
-                        faceData.add(verts.get(i));
                         faceData.add(verts.get(i + 1));
+                        faceData.add(verts.get(i));
                     }
                     break;
             }
