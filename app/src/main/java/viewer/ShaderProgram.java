@@ -73,6 +73,7 @@ public class ShaderProgram {
             #version 330 core
             layout (location = 0) in vec3 aPos;
             layout (location = 1) in vec3 aNormal;
+            layout (location = 2) in vec2 aUv;
 
             uniform mat4 uModel;
             uniform mat4 uView;
@@ -80,10 +81,12 @@ public class ShaderProgram {
 
             out vec3 FragPos;
             out vec3 Normal;
+            out vec2 Uv;
 
             void main() {
                 FragPos = vec3(uModel * vec4(aPos, 1.0));
                 Normal = mat3(transpose(inverse(uModel))) * aNormal;
+                Uv = aUv;
                 gl_Position = uProjection * uView * vec4(FragPos, 1.0);
             }
             """;
@@ -94,12 +97,15 @@ public class ShaderProgram {
             #version 330 core
             in vec3 FragPos;
             in vec3 Normal;
+            in vec2 Uv;
 
             uniform vec3 uLightPos;
             uniform vec3 uLightColor;
             uniform vec3 uViewPos;
             uniform vec3 uObjectColor;
             uniform float uAmbientStrength;
+            uniform int uUseTexture;
+            uniform sampler2D uTexture;
 
             out vec4 FragColor;
 
@@ -120,7 +126,15 @@ public class ShaderProgram {
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
                 vec3 specular = specularStrength * spec * uLightColor;
 
-                vec3 result = (ambient + diffuse + specular) * uObjectColor;
+                // Farbe: entweder Textur oder uObjectColor
+                vec3 baseColor;
+                if (uUseTexture > 0) {
+                    baseColor = texture(uTexture, Uv).rgb;
+                } else {
+                    baseColor = uObjectColor;
+                }
+
+                vec3 result = (ambient + diffuse + specular) * baseColor;
                 FragColor = vec4(result, 1.0);
             }
             """;

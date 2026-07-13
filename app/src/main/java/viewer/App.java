@@ -24,6 +24,7 @@ public class App {
     private Camera camera;
     private Scene scene;
     private STLLoader stlLoader;
+    private OBJLoader objLoader;
     private boolean[] keys = new boolean[GLFW_KEY_LAST + 1];
     private int windowWidth = 1280, windowHeight = 720;
 
@@ -71,6 +72,7 @@ public class App {
         camera = new Camera();
         scene = new Scene();
         stlLoader = new STLLoader();
+        objLoader = new OBJLoader();
 
         // === Key callback ===
         glfwSetKeyCallback(window, (w, key, scancode, action, mods) -> {
@@ -196,24 +198,40 @@ public class App {
 
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-        // === Drag & Drop for STL files ===
+        // === Drag & Drop for STL and OBJ files ===
         glfwSetDropCallback(window, new GLFWDropCallback() {
             @Override
             public void invoke(long window, int count, long names) {
                 org.lwjgl.PointerBuffer pb = MemoryUtil.memPointerBuffer(names, count);
                 for (int i = 0; i < count; i++) {
                     String path = MemoryUtil.memUTF8(pb.get(i));
-                    if (path.toLowerCase().endsWith(".stl")) {
+                    String lower = path.toLowerCase();
+
+                    if (lower.endsWith(".stl")) {
                         System.out.println("Loading STL: " + path);
                         try {
                             Mesh mesh = stlLoader.load(path);
                             scene.addMesh(mesh);
-                            System.out.println("  Mesh #" + scene.getMeshCount() + " added at (0,0,0)");
+                            System.out.println("  Mesh #" + scene.getMeshCount() + " added");
                             if (mode == Mode.EDIT) {
                                 editMesh = scene.getMeshCount() - 1;
                             }
                         } catch (Exception e) {
                             System.err.println("Error loading STL: " + e.getMessage());
+                        }
+                    } else if (lower.endsWith(".obj")) {
+                        System.out.println("Loading OBJ: " + path);
+                        try {
+                            java.util.List<Mesh> meshes = objLoader.load(path);
+                            for (Mesh m : meshes) {
+                                scene.addMesh(m);
+                            }
+                            System.out.println("  " + meshes.size() + " mesh(es) added (total #" + scene.getMeshCount() + ")");
+                            if (mode == Mode.EDIT) {
+                                editMesh = scene.getMeshCount() - 1;
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Error loading OBJ: " + e.getMessage());
                         }
                     }
                 }
@@ -227,7 +245,7 @@ public class App {
         System.out.println("EDIT: Maus = verschieben, Scroll = Höhe (Z)");
         System.out.println("EDIT: +/- = skalieren, R = rotieren (45°)");
         System.out.println("EDIT: Linksklick = nächstes Mesh, Rechtsklick = zurück");
-        System.out.println("STL-Dateien reinziehen = laden");
+        System.out.println("STL-Dateien (.stl) oder OBJ-Dateien (.obj) reinziehen = laden");
     }
 
     /** Berechnet den Schnittpunkt Mausstrahl -> Boden (z=0) */

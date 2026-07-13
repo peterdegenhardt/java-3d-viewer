@@ -228,8 +228,15 @@ public class Scene {
                 .scale(mesh.getScale());
 
             meshShader.setMat4("uModel", model.get(new float[16]));
-            if (selectedMesh == i) meshShader.setVec3("uObjectColor", 1.0f, 0.9f, 0.4f);
-            else meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f);
+
+            if (mesh.hasTexture()) {
+                meshShader.setInt("uUseTexture", 1);
+                meshShader.setInt("uTexture", 0); // texture unit 0
+            } else {
+                meshShader.setInt("uUseTexture", 0);
+                if (selectedMesh == i) meshShader.setVec3("uObjectColor", 1.0f, 0.9f, 0.4f);
+                else meshShader.setVec3("uObjectColor", 0.7f, 0.7f, 0.9f);
+            }
             mesh.render();
 
             // Debug: position info für erstes Mesh
