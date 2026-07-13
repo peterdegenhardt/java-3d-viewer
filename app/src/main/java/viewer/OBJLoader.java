@@ -111,19 +111,22 @@ public class OBJLoader {
                 case "usemtl": // Use material
                     if (parts.length >= 2) {
                         currentMtl = parts[1];
+                        System.out.println("    usemtl: '" + currentMtl + "'");
                         // Sicherstellen, dass der Eintrag existiert
                         materialFaces.putIfAbsent(currentMtl, new ArrayList<>());
                     }
                     break;
                 case "f": // Face
                     if (parts.length < 4) break;
-                    if (currentMtl == null) currentMtl = "__default__";
+                    if (currentMtl == null) {
+                        currentMtl = "__default__";
+                        System.out.println("    DEBUG: no usemtl before f, using __default__");
+                    }
                     materialFaces.putIfAbsent(currentMtl, new ArrayList<>());
 
                     List<int[]> faceData = materialFaces.get(currentMtl);
 
-                    // Parse "f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3" oder "f v1//vn1 v2//vn2 v3//vn3"
-                    // Wir triangulieren: bei 4+ Vertices fan-triangulate
+                    // Parse "f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3" oder "f v1//vn1 v2//vn2 v3//vn3" oder "f v1 v2 v3"
                     List<int[]> verts = new ArrayList<>();
                     for (int i = 1; i < parts.length; i++) {
                         String[] indices = parts[i].split("/");
@@ -131,6 +134,14 @@ public class OBJLoader {
                         int ti = indices.length > 1 && !indices[1].isEmpty() ? parseIntOrZero(indices[1]) - 1 : -1;
                         int ni = indices.length > 2 && !indices[2].isEmpty() ? parseIntOrZero(indices[2]) - 1 : -1;
                         verts.add(new int[]{pi, ti, ni});
+                    }
+
+                    // Debug: Face-Format erkennen
+                    if (verts.size() > 0 && verts.get(0)[1] < 0) {
+                        // keine UVs in diesem Face
+                    }
+                    if (verts.size() > 0 && verts.get(0)[2] < 0) {
+                        // keine Normalen in diesem Face
                     }
 
                     // Fan-triangulation: (0,1,2), (0,2,3), (0,3,4), ...
@@ -145,6 +156,17 @@ public class OBJLoader {
 
         // === Meshes bauen ===
         List<Mesh> meshes = new ArrayList<>();
+
+        System.out.println("  DEBUG: " + materialFaces.size() + " material group(s) found");
+        for (String mtlKey : materialFaces.keySet()) {
+            System.out.println("  DEBUG:   material='" + mtlKey + "', faces=" + materialFaces.get(mtlKey).size() / 3);
+            Material m = materials.get(mtlKey);
+            if (m != null) {
+                System.out.println("  DEBUG:     MTL: name=" + m.name + ", mapKd=" + m.mapKd);
+            } else {
+                System.out.println("  DEBUG:     No MTL entry found for '" + mtlKey + "'");
+            }
+        }
 
         for (Map.Entry<String, List<int[]>> entry : materialFaces.entrySet()) {
             String mtlName = entry.getKey();
@@ -235,6 +257,7 @@ public class OBJLoader {
                             current = new Material();
                             current.name = parts[1];
                             materials.put(current.name, current);
+                            System.out.println("    MTL: newmtl '" + current.name + "'");
                         }
                         break;
                     case "map_Kd": // Diffuse texture map
