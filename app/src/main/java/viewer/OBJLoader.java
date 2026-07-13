@@ -10,6 +10,7 @@ import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.awt.image.BufferedImage;
 import java.util.*;
 
 import static org.lwjgl.opengl.GL11.*;
@@ -305,7 +306,7 @@ public class OBJLoader {
         }
     }
 
-    /** Lädt ein Texture-Bild via stb_image und gibt eine OpenGL-Texture-ID zurück (0 bei Fehler) */
+    /** Lädt ein Texture-Bild via stb_image (schnell), Fallback auf Java ImageIO (robust) */
     private int loadTexture(String filePath, Path baseDir) {
         if (filePath == null || filePath.isEmpty()) return 0;
 
@@ -315,35 +316,74 @@ public class OBJLoader {
             return 0;
         }
 
+        // Versuch 1: stb_image
         IntBuffer w = BufferUtils.createIntBuffer(1);
         IntBuffer h = BufferUtils.createIntBuffer(1);
         IntBuffer comp = BufferUtils.createIntBuffer(1);
 
-        ByteBuffer image = STBImage.stbi_load(filePath, w, h, comp, 4); // RGBA forced
-        if (image == null) {
-            System.out.println("    Error loading texture: " + STBImage.stbi_failure_reason());
-            return 0;
+        ByteBuffer image = STBImage.stbi_load(filePath, w, h, comp, 4);
+        if (image != null) {
+            int texId = createOpenGLTexture(w.get(0), h.get(0), image);
+            STBImage.stbi_image_free(image);
+            System.out.println("    Loaded texture (stb): " + texFile.getName());
+            return texId;
         }
 
-        int width = w.get(0);
-        int height = h.get(0);
+        String stbError = STBImage.stbi_failure_reason();
+        System.out.println("    stb_image failed for '" + texFile.getName() + "': " + stbError + " — trying ImageIO...");
 
+        // Versuch 2: Java ImageIO (unterstützt JPEG, PNG, BMP, GIF, TIFF, WBMP)
+        try {
+            BufferedImage bi = javax.imageio.ImageIO.read(texFile);
+            if (bi == null) {
+                System.out.println("    ImageIO: could not read file (null)");
+                return 0;
+            }
+
+            int width = bi.getWidth();
+            int height = bi.getHeight();
+
+            // In RGBA konvertieren (falls das Bild keinen Alpha-Kanal hat)
+            BufferedImage rgba = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            rgba.getGraphics().drawImage(bi, 0, 0, null);
+
+            // Pixel in ByteBuffer (RGBA, 4 Bytes pro Pixel)
+            ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int argb = rgba.getRGB(x, y);
+                    buffer.put((byte) ((argb >> 16) & 0xFF)); // R
+                    buffer.put((byte) ((argb >> 8) & 0xFF));  // G
+                    buffer.put((byte) (argb & 0xFF));         // B
+                    buffer.put((byte) ((argb >> 24) & 0xFF)); // A
+                }
+            }
+            buffer.flip();
+
+            int texId = createOpenGLTexture(width, height, buffer);
+            System.out.println("    Loaded texture (ImageIO): " + texFile.getName()
+                + " " + width + "x" + height);
+            return texId;
+
+        } catch (Exception e) {
+            System.out.println("    ImageIO also failed: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /** Erzeugt eine OpenGL-Texture aus einem ByteBuffer (RGBA) */
+    private int createOpenGLTexture(int width, int height, ByteBuffer data) {
         int texId = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, texId);
 
-        // Texture-Parameter
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        // Bild in OpenGL laden
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        STBImage.stbi_image_free(image);
-
-        System.out.println("    Loaded texture: " + width + "x" + height + " (" + texFile.getName() + ")");
         return texId;
     }
 
